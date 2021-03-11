@@ -308,16 +308,36 @@ EOL""".strip() % dict(
     idx += 1
 
 
+def _check_if_default_appengine_service_exists(stage, debug=False):
+  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
+  command = "{gcloud_bin} app services list \
+    --project={project_id} 2>/dev/null \
+    | grep -q 'default'".format(
+      gcloud_bin=gcloud_command,
+      project_id=stage.project_id_gae)
+  status, out, err = shared.execute_command(
+      "Check if default App Engine service already exists",
+      command,
+      report_empty_err=False,
+      debug=debug)
+  return status == 0
+    
+
 def deploy_frontend(stage, debug=False):
+  config = "gae.yaml"
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   # NB: Limit the node process memory usage to avoid overloading
   #     the Cloud Shell VM memory which makes it unresponsive.
+  if _check_if_default_appengine_service_exists(stage, debug):
+    click.echo("     defualt App Engine service already exists. Naming service: crmintapp")
+    config = "gae_service.yaml"
   commands = [
       "npm install --legacy-peer-deps",
       "node --max-old-space-size=512 ./node_modules/@angular/cli/bin/ng build",
-      "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1".format(
+      "{gcloud_bin} --project={project_id} app deploy {config} --version=v1".format(
           gcloud_bin=gcloud_command,
-          project_id=stage.project_id_gae),
+          project_id=stage.project_id_gae,
+          config=config),
   ]
   cmd_workdir = os.path.join(stage.workdir, 'frontend')
   total = len(commands)
