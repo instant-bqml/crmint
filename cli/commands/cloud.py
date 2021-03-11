@@ -328,9 +328,6 @@ def deploy_frontend(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   # NB: Limit the node process memory usage to avoid overloading
   #     the Cloud Shell VM memory which makes it unresponsive.
-  if _check_if_default_appengine_service_exists(stage, debug):
-    click.echo("     defualt App Engine service already exists. Naming service: crmintapp")
-    config = "gae_service.yaml"
   commands = [
       "npm install --legacy-peer-deps",
       "node --max-old-space-size=512 ./node_modules/@angular/cli/bin/ng build",
