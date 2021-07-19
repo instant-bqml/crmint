@@ -313,7 +313,7 @@ def deploy_frontend(stage, debug=False):
   # NB: Limit the node process memory usage to avoid overloading
   #     the Cloud Shell VM memory which makes it unresponsive.
   commands = [
-      "npm install",
+      "npm install --legacy-peer-deps",
       "node --max-old-space-size=512 ./node_modules/@angular/cli/bin/ng build",
       "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1".format(
           gcloud_bin=gcloud_command,
@@ -346,6 +346,9 @@ def deploy_dispatch_rules(stage, debug=False):
 
 def install_backends_dependencies(stage, debug=False):
   commands = [
+      # HACK: fix missing MySQL header for compilation
+      "sudo wget https://raw.githubusercontent.com/paulfitz/mysql-connector-c/master/include/my_config.h -P /usr/include/mysql/",
+      # Install dependencies in virtualenv
       "virtualenv --python=python2 env",
       "mkdir -p lib",
       "pip install -r ibackend/requirements.txt -t lib",
