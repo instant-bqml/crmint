@@ -17,7 +17,7 @@
 from google.cloud.aiplatform.compat.types import pipeline_state as ps
 from google.cloud.aiplatform.compat.types import job_state as js
 from jobs.workers.worker import WorkerException
-from jobs.workers.vertexai.vertex_ai_worker import VertexAIWorker
+from jobs.workers.vertexai.vertexai_worker import VertexAIWorker
 
 
 class VertexAIWaiter(VertexAIWorker):
