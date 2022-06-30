@@ -23,6 +23,7 @@ from jobs.workers.bigquery import bq_query_launcher
 from jobs.workers.bigquery import bq_script_executor
 from jobs.workers.bigquery import bq_to_measurement_protocol_ga4
 from jobs.workers.bigquery import bq_to_storage_exporter
+from jobs.workers.bigquery import bq_to_vertex_ai_dataset
 from jobs.workers.bigquery import bq_waiter
 from jobs.workers.bigquery import storage_to_bq_importer
 from jobs.workers.ga import ga_audiences_updater
@@ -53,6 +54,8 @@ WORKERS_MAPPING = {
         bq_to_measurement_protocol_ga4.BQToMeasurementProtocolGA4,
     'BQToStorageExporter':
         bq_to_storage_exporter.BQToStorageExporter,
+    'BQToVertexAIDataset':
+        bq_to_vertex_ai_dataset.BQToVertexAIDataset,
     'Commenter':
         commenter.Commenter,
     'GAAudiencesUpdater':
