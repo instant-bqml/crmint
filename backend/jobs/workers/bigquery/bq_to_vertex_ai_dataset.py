@@ -14,7 +14,7 @@
 
 from google.cloud import aiplatform
 #from jobs.workers.worker import Worker, WorkerException
-from jobs.workers.vertexai.vertex_ai_worker import VertexAIWorker
+from jobs.workers.vertexai.vertexai_worker import VertexAIWorker
 
 class BQToVertexAIDataset(VertexAIWorker):
   """Worker to export a BigQuery table to a Vertex AI dataset."""
