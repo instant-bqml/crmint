@@ -93,6 +93,8 @@ class VertexAITabularTrainer(VertexAIWorker):
       sync=False,
     )
     job.wait_for_resource_creation()
+    self.log_info(f'{job}')
+    self.log_info(f'{job.resource_name}')
     pipeline_name = job.resource_name
     pipeline = self._get_training_pipeline(pipeline_client, pipeline_name)
     self._wait_for_pipeline(pipeline)
