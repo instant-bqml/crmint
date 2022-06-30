@@ -34,6 +34,7 @@ google-auth==2.6.0
     #   google-auth-httplib2
     #   google-cloud-core
     #   google-cloud-storage
+google-cloud-aiplatform==1.14.0
 google-auth-httplib2==0.1.0
     # via google-api-python-client
 google-cloud-appengine-logging==1.1.0
