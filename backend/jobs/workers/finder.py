@@ -29,6 +29,10 @@ from jobs.workers.ga import ga_audiences_updater
 from jobs.workers.ga import ga_data_importer
 from jobs.workers.ga import ga_waiter
 from jobs.workers.storage import storage_cleaner
+from jobs.workers.vertexai import vertexai_batch_predictor_to_bq
+from jobs.workers.vertexai import vertexai_tabular_trainer
+from jobs.workers.vertexai import vertexai_waiter
+from jobs.workers.vertexai import vertexai_worker
 
 ConcreteWorker = TypeVar('ConcreteWorker', bound=worker.Worker)
 
@@ -64,6 +68,10 @@ WORKERS_MAPPING = {
         storage_cleaner.StorageCleaner,
     'StorageToBQImporter':
         storage_to_bq_importer.StorageToBQImporter,
+    'VertexAIBatchPredictorToBQ': 
+        vertexai_batch_predictor_to_bq.VertexAIBatchPredictorToBQ,
+    'VertexAITabularTrainer': 
+        vertexai_tabular_trainer.VertexAITabularTrainer,
 }
 
 _PRIVATE_WORKERS_MAPPING = {
@@ -71,6 +79,8 @@ _PRIVATE_WORKERS_MAPPING = {
         bq_to_measurement_protocol_ga4.BQToMeasurementProtocolProcessorGA4,
   'BQWaiter': bq_waiter.BQWaiter,
   'GADataImportUploadWaiter': ga_waiter.GADataImportUploadWaiter,
+  'VertexAIWaiter': vertexai_waiter.VertexAIWaiter,
+  'VertexAIWorker': vertexai_worker.VertexAIWorker,
 }
 
 
