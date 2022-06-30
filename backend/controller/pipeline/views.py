@@ -28,7 +28,7 @@ from flask_restful import fields
 from flask_restful import marshal_with
 from flask_restful import reqparse
 from flask_restful import Resource
-from google.cloud.logging import DESCENDING
+from google.cloud import logging
 import jinja2
 import werkzeug
 
@@ -37,6 +37,7 @@ from common import insight
 from controller import models
 
 _PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
+_LOGS_PAGE_SIZE = 20
 
 blueprint = flask.Blueprint('pipeline', __name__)
 api = Api(blueprint)
@@ -332,10 +333,17 @@ class PipelineLogs(Resource):
         fromdate=args.get('fromdate'),
         todate=args.get('todate'),
         next_page_token=args.get('next_page_token'))
-    list_entries = crmint_logging.get_logger().client.list_entries(
+    # NOTE: `page_size` defines the number of entries to fetch in each API call.
+    #       Although requests are paged internally, logs are returned by the
+    #       generator one at a time.
+    #       `max_results` has to be used if we don't want the generator to
+    #       exhaust our reading quota.
+    list_entries_iter = crmint_logging.get_logger().list_entries(
         filter_=filter_,
-        order_by=DESCENDING)
-    for entry in list_entries:
+        order_by=logging.DESCENDING,
+        page_size=_LOGS_PAGE_SIZE,
+        max_results=_LOGS_PAGE_SIZE)
+    for entry in list_entries_iter:
       if not isinstance(entry.payload, dict):
         continue
 
