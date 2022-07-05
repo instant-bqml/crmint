@@ -89,8 +89,10 @@ _PRIVATE_WORKERS_MAPPING = {
 
 def get_worker_class(class_name: str) -> Type[ConcreteWorker]:
   """Returns a worker class.
+
   Args:
     class_name: The name of the worker class.
+
   Raises:
     ModuleNotFoundError: if the class name cannot be found.
   """
