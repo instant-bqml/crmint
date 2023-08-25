@@ -549,6 +549,71 @@ def download_config_files(stage, debug=False):
   shared.execute_command('Download configuration file', cmd, debug=debug)
 
 
+def disable_appengine(stage, debug=False):
+    """Disable all App Engine services for the given stage."""
+    
+    project_id = stage.project_id
+    
+    # List all App Engine services
+    cmd = f'{GCLOUD} app services list --project={project_id} --format="get(id)"'
+    _, services, _ = shared.execute_command('Fetching App Engine services', cmd, debug=debug)
+
+    # Stop each service
+    for service in services.strip().splitlines():
+        cmd = f'{GCLOUD} app services stop {service} --project={project_id} -q'
+        shared.execute_command(f'Stopping App Engine service {service}', cmd, debug=debug)
+
+
+def delete_cloudsql_instance(stage, debug=False):
+    """Delete the CloudSQL instance for the given stage."""
+    
+    project_id = stage.database_project  # Use the specific project ID for database
+    instance_id = stage.database_instance_name  # Use the specific instance name
+
+    # Confirm from the user since this is irreversible
+    confirmation = click.confirm('Are you sure you want to delete the CloudSQL instance? This action cannot be undone.', default=False)
+    if not confirmation:
+        click.echo(textwrap.indent('CloudSQL instance deletion aborted.', _INDENT_PREFIX))
+        return
+    
+    cmd = f'{GCLOUD} sql instances delete {instance_id} --project={project_id} -q'
+    shared.execute_command('Delete CloudSQL instance', cmd, debug=debug)
+
+
+def delete_scheduler_job(stage, debug=False):
+    """Delete the Cloud Scheduler job for the given stage."""
+    
+    if not _check_if_scheduler_job_exists(stage, debug=debug):
+        click.echo(textwrap.indent('Cloud Scheduler job does not exist.', _INDENT_PREFIX))
+        return
+
+    project_id = stage.project_id
+    cmd = f'{GCLOUD} scheduler jobs delete crmint-cron --project={project_id} -q'
+    shared.execute_command('Delete Cloud Scheduler job', cmd, debug=debug)
+
+
+def delete_pubsub_subscriptions(stage, debug=False):
+    """Delete the Pub/Sub subscriptions for the given stage."""
+    existing_subscriptions = _get_existing_pubsub_entities(stage, 'subscriptions', debug)
+    project_id = stage.project_id
+    crmint_subscriptions = [f"{topic_id}-subscription" for topic_id in SUBSCRIPTIONS.keys()]
+
+    subscriptions_to_delete = [s for s in crmint_subscriptions if s in existing_subscriptions]
+    for subscription in subscriptions_to_delete:
+        cmd = f'{GCLOUD} --project={project_id} pubsub subscriptions delete {subscription}'
+        shared.execute_command(f'Deleting Pub/Sub subscription {subscription}', cmd, debug=debug)
+
+
+def delete_pubsub_topics(stage, debug=False):
+    """Delete the Pub/Sub topics for the given stage."""
+    existing_topics = _get_existing_pubsub_entities(stage, 'topics', debug)
+    crmint_topics = SUBSCRIPTIONS.keys()
+
+    topics_to_delete = [t for t in crmint_topics if t in existing_topics]
+    for topic in topics_to_delete:
+        cmd = f'{GCLOUD} --project={project_id} pubsub topics delete {topic}'
+        shared.execute_command(f'Deleting Pub/Sub topic {topic}', cmd, debug=debug)
+
 ####################### DEPLOY #######################
 
 
@@ -1149,6 +1214,35 @@ def reset(stage_path: Union[None, str], debug: bool):
   for component in components:
     component(stage, debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
+
+
+@cli.command('uninstall')
+@click.option('--stage_path', type=str, default=None)
+@click.option('--debug/--no-debug', default=False)
+def uninstall(stage_path: Union[None, str], debug: bool) -> None:
+    """Uninstall the CRMint deployment."""
+    click.echo(click.style('>>>> Starting uninstallation', fg='magenta', bold=True))
+
+    if stage_path is not None:
+        stage_path = pathlib.Path(stage_path)
+
+    try:
+        stage = fetch_stage_or_default(stage_path, debug=debug)
+    except CannotFetchStageError:
+        sys.exit(1)
+
+    stage = shared.before_hook(stage)
+
+    components = [
+        disable_appengine,
+        delete_cloudsql_instance,
+        delete_scheduler_job,
+        delete_pubsub_subscriptions,
+        delete_pubsub_topics
+    ]
+    for component in components:
+        component(stage, debug=debug)
+    click.echo(click.style('Done uninstalling.', fg='magenta', bold=True))
 
 
 if __name__ == '__main__':
