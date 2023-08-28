@@ -549,19 +549,14 @@ def download_config_files(stage, debug=False):
   shared.execute_command('Download configuration file', cmd, debug=debug)
 
 
-def disable_appengine(stage, debug=False):
-    """Disable all App Engine services for the given stage."""
+def disable_appengine_guide(stage, debug=False):
+    """Guide user to disable the App Engine instance for the given stage."""
     
     project_id = stage.project_id
-    
-    # List all App Engine services
-    cmd = f'{GCLOUD} app services list --project={project_id} --format="get(id)"'
-    _, services, _ = shared.execute_command('Fetching App Engine services', cmd, debug=debug)
-
-    # Stop each service
-    for service in services.strip().splitlines():
-        cmd = f'{GCLOUD} app services stop {service} --project={project_id} -q'
-        shared.execute_command(f'Stopping App Engine service {service}', cmd, debug=debug)
+    settings_url = f"https://console.cloud.google.com/appengine/settings?project={project_id}\n"
+    message = click.style("\nTo disable App Engine, please visit the following URL and click on the 'Disable Application' button:", bold=True, fg='yellow')
+    click.echo(message)
+    click.echo(click.style(settings_url, underline=True)) 
 
 
 def delete_cloudsql_instance(stage, debug=False):
@@ -571,8 +566,9 @@ def delete_cloudsql_instance(stage, debug=False):
     instance_id = stage.database_instance_name  # Use the specific instance name
 
     # Confirm from the user since this is irreversible
-    confirmation = click.confirm('Are you sure you want to delete the CloudSQL instance? This action cannot be undone.', default=False)
-    if not confirmation:
+    confirmation_message = '\nAre you sure you want to delete the CloudSQL instance? This action cannot be undone.'
+    if not click.confirm(
+        click.style(confirmation_message, fg='yellow', bold=True), default=False):
         click.echo(textwrap.indent('CloudSQL instance deletion aborted.', _INDENT_PREFIX))
         return
     
@@ -594,11 +590,16 @@ def delete_scheduler_job(stage, debug=False):
 
 def delete_pubsub_subscriptions(stage, debug=False):
     """Delete the Pub/Sub subscriptions for the given stage."""
+    
     existing_subscriptions = _get_existing_pubsub_entities(stage, 'subscriptions', debug)
     project_id = stage.project_id
     crmint_subscriptions = [f"{topic_id}-subscription" for topic_id in SUBSCRIPTIONS.keys()]
-
+    
     subscriptions_to_delete = [s for s in crmint_subscriptions if s in existing_subscriptions]
+    if not subscriptions_to_delete:
+        click.echo(textwrap.indent('No Pub/Sub subscriptions found to delete.', _INDENT_PREFIX))
+        return
+    
     for subscription in subscriptions_to_delete:
         cmd = f'{GCLOUD} --project={project_id} pubsub subscriptions delete {subscription}'
         shared.execute_command(f'Deleting Pub/Sub subscription {subscription}', cmd, debug=debug)
@@ -606,13 +607,20 @@ def delete_pubsub_subscriptions(stage, debug=False):
 
 def delete_pubsub_topics(stage, debug=False):
     """Delete the Pub/Sub topics for the given stage."""
+    
     existing_topics = _get_existing_pubsub_entities(stage, 'topics', debug)
+    project_id = stage.project_id
     crmint_topics = SUBSCRIPTIONS.keys()
-
+    
     topics_to_delete = [t for t in crmint_topics if t in existing_topics]
+    if not topics_to_delete:
+        click.echo(textwrap.indent('No Pub/Sub topics found to delete.', _INDENT_PREFIX))
+        return
+    
     for topic in topics_to_delete:
         cmd = f'{GCLOUD} --project={project_id} pubsub topics delete {topic}'
         shared.execute_command(f'Deleting Pub/Sub topic {topic}', cmd, debug=debug)
+
 
 ####################### DEPLOY #######################
 
@@ -1234,11 +1242,11 @@ def uninstall(stage_path: Union[None, str], debug: bool) -> None:
     stage = shared.before_hook(stage)
 
     components = [
-        disable_appengine,
         delete_cloudsql_instance,
         delete_scheduler_job,
         delete_pubsub_subscriptions,
-        delete_pubsub_topics
+        delete_pubsub_topics,
+        disable_appengine_guide,
     ]
     for component in components:
         component(stage, debug=debug)
