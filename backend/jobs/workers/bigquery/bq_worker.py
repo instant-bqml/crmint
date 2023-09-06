@@ -47,7 +47,10 @@ class BQWorker(worker.Worker):
     time.sleep(delay)
     while not job.done():
       if waiting_time > 300:  # Once 5 minutes have passed, spawn BQWaiter.
-        self._enqueue('BQWaiter', {'job_id': job.job_id}, 60)
+        self._enqueue('BQWaiter', {
+          'job_id': job.job_id,
+          'location': job.location
+        }, 60)
         return
       if delay < 30:
         delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
