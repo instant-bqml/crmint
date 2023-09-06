@@ -24,10 +24,14 @@ class BQWaiter(bq_worker.BQWorker):
 
   def _execute(self):
     client = self._get_client()
-    job = client.get_job(self._params['job_id'])
+    job = client.get_job(
+      self._params['job_id'], location=self._params['location'])
     if job.error_result is not None:
       raise worker.WorkerException(job.error_result['message'])
     if job.state != 'DONE':
-      self._enqueue('BQWaiter', {'job_id': self._params['job_id']}, 60)
+      self._enqueue('BQWaiter', {
+        'job_id': self._params['job_id'],
+        'location': self._params['location']
+      }, 60)
     else:
       self.log_info('Finished successfully!')
