@@ -118,8 +118,8 @@ def get_user_email(debug: bool = False) -> str:
   return out.strip()
 
 
-def check_if_user_is_owner(user_email: str, 
-                           stage: shared.StageContext, 
+def check_if_user_is_owner(user_email: str,
+                           stage: shared.StageContext,
                            debug: bool = False) -> bool:
     """Returns True if the current gcloud user or their group has roles/owner.
     
