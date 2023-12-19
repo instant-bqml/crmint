@@ -118,29 +118,89 @@ def get_user_email(debug: bool = False) -> str:
   return out.strip()
 
 
-def check_if_user_is_owner(user_email: str,
-                           stage: shared.StageContext,
+def check_if_user_is_owner(user_email: str, 
+                           stage: shared.StageContext, 
                            debug: bool = False) -> bool:
-  """Returns True if the current gcloud user has roles/owner.
+    """Returns True if the current gcloud user or their group has roles/owner.
+    
+    Args:
+      user_email: Email address to check the owner role on.
+      stage: Stage context.
+      debug: Enables the debug mode on system calls.
+    """
+    project_number = get_project_number(stage, debug=debug)
+    # Command to check direct user role
+    user_cmd = textwrap.dedent(f"""\
+        {GCLOUD} projects get-iam-policy {project_number} \\
+            --flatten="bindings[].members" \\
+            --filter="bindings.members=user:{user_email}" \\
+            --format="value(bindings.role)"
+        """)
+    
+    _, user_out, _ = shared.execute_command(
+        'Validates current user has roles/owner',
+        user_cmd,
+        debug=debug,
+        debug_uses_std_out=False)
+    
+    # If user directly has roles/owner, return True
+    if re.search(r'roles/owner', user_out.strip()):
+        return True
+    
+    # Additional check for group membership
+    group_cmd = textwrap.dedent(f"""\
+        {GCLOUD} projects get-iam-policy {project_number} \\
+            --flatten="bindings[].members" \\
+            --filter="bindings.role:roles/owner" \\
+            --format="value(bindings.members)"
+        """)
+    
+    _, group_out, _ = shared.execute_command(
+        'Checking if user groups have roles/owner',
+        group_cmd,
+        debug=debug,
+        debug_uses_std_out=False)
+    
+    # Check if any group the user is part of has roles/owner
+    groups_with_owner = re.findall(r'group:([^\s]+)', group_out)
+    for group in groups_with_owner:
+        if is_user_in_group(user_email, group, stage, debug):
+            return True
+    
+    return False
 
-  Args:
-    user_email: Email address to check the owner role on.
-    stage: Stage context.
-    debug: Enables the debug mode on system calls.
-  """
-  project_number = get_project_number(stage, debug=debug)
-  cmd = textwrap.dedent(f"""\
-      {GCLOUD} projects get-iam-policy {project_number} \\
-          --flatten="bindings[].members" \\
-          --filter="bindings.members=user:{user_email}" \\
-          --format="value(bindings.role)"
-      """)
-  _, out, _ = shared.execute_command(
-      'Validates current user has roles/owner',
-      cmd,
-      debug=debug,
-      debug_uses_std_out=False)
-  return bool(re.search(r'roles/owner', out.strip()))
+
+def is_user_in_group(user_email: str, 
+                     group_email: str, 
+                     stage: shared.StageContext, 
+                     debug: bool) -> bool:
+    """Check if a user is a member of a specific group.
+
+    Args:
+      user_email: Email address of the user.
+      group_email: Email address of the group.
+      stage: Stage context.
+      debug: Enables the debug mode on system calls.
+    """
+    # Command to check group membership
+    cmd = textwrap.dedent(f"""\
+        {GCLOUD} identity groups memberships check-transitive-membership 
+            --group-email={group_email} \\
+            --member-email={user_email} \\
+            --format=json
+        """)
+    
+    _, out, _ = shared.execute_command(
+        f'Check if {user_email} is in group {group_email}',
+        cmd,
+        debug=debug,
+        debug_uses_std_out=False)
+
+    try:
+        result = json.loads(out)
+        return result.get('hasMembership', False)
+    except json.JSONDecodeError:
+        return False
 
 
 def check_billing_configured(stage: shared.StageContext,
@@ -531,6 +591,7 @@ def activate_services(stage, debug=False):
          f' appengine.googleapis.com'
          f' bigquery-json.googleapis.com'
          f' cloudapis.googleapis.com'
+         f' cloudidentity.googleapis.com'
          f' logging.googleapis.com'
          f' pubsub.googleapis.com'
          f' storage-api.googleapis.com'
