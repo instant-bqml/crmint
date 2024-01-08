@@ -182,6 +182,11 @@ def is_user_in_group(user_email: str,
       stage: Stage context.
       debug: Enables the debug mode on system calls.
     """
+    # Ensure Cloud Identity API is enabled
+    if not is_cloud_identity_api_enabled(stage, debug):
+        if not enable_cloud_identity_api(stage, debug):
+            return False
+            
     # Command to check group membership
     cmd = textwrap.dedent(f"""\
         {GCLOUD} identity groups memberships check-transitive-membership 
@@ -201,6 +206,48 @@ def is_user_in_group(user_email: str,
         return result.get('hasMembership', False)
     except json.JSONDecodeError:
         return False
+
+
+def enable_cloud_identity_api(stage: shared.StageContext,
+                              debug: bool) -> bool:
+    """Enable the Cloud Identity API for the current project.
+
+    Args:
+      stage: Stage context.
+      debug: Enables the debug mode on system calls.
+    """
+    enable_api_cmd = textwrap.dedent(f"""\
+        {GCLOUD} services enable cloudidentity.googleapis.com 
+            --project={stage.gae_project}
+        """)
+    status, _, _ = shared.execute_command(
+        'Enabling Cloud Identity Groups API',
+        enable_api_cmd,
+        debug=debug,
+        debug_uses_std_out=False)
+    return status == 0
+
+
+def is_cloud_identity_api_enabled(stage: shared.StageContext,
+                                  debug: bool) -> bool:
+    """Check if the Cloud Identity API is enabled for the current project.
+
+    Args:
+      stage: Stage context.
+      debug: Enables the debug mode on system calls.
+    """
+    check_api_cmd = textwrap.dedent(f"""\
+        {GCLOUD} services list --enabled \
+            --filter="config.name:cloudidentity.googleapis.com" \
+            --format="value(config.name)" \
+            --project={stage.gae_project}
+        """)
+    _, out, _ = shared.execute_command(
+        'Checking if Cloud Identity Groups API is enabled',
+        check_api_cmd,
+        debug=debug,
+        debug_uses_std_out=False)
+    return "cloudidentity.googleapis.com" in out.strip()
 
 
 def check_billing_configured(stage: shared.StageContext,
@@ -591,7 +638,6 @@ def activate_services(stage, debug=False):
          f' appengine.googleapis.com'
          f' bigquery-json.googleapis.com'
          f' cloudapis.googleapis.com'
-         f' cloudidentity.googleapis.com'
          f' logging.googleapis.com'
          f' pubsub.googleapis.com'
          f' storage-api.googleapis.com'
