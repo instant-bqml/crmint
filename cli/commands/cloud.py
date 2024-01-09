@@ -189,7 +189,7 @@ def is_user_in_group(user_email: str,
             
     # Command to check group membership
     cmd = textwrap.dedent(f"""\
-        {GCLOUD} identity groups memberships check-transitive-membership 
+        {GCLOUD} identity groups memberships check-transitive-membership \\
             --group-email={group_email} \\
             --member-email={user_email} \\
             --format=json
@@ -217,7 +217,7 @@ def enable_cloud_identity_api(stage: shared.StageContext,
       debug: Enables the debug mode on system calls.
     """
     enable_api_cmd = textwrap.dedent(f"""\
-        {GCLOUD} services enable cloudidentity.googleapis.com 
+        {GCLOUD} services enable cloudidentity.googleapis.com \\
             --project={stage.gae_project}
         """)
     status, _, _ = shared.execute_command(
@@ -237,9 +237,9 @@ def is_cloud_identity_api_enabled(stage: shared.StageContext,
       debug: Enables the debug mode on system calls.
     """
     check_api_cmd = textwrap.dedent(f"""\
-        {GCLOUD} services list --enabled \
-            --filter="config.name:cloudidentity.googleapis.com" \
-            --format="value(config.name)" \
+        {GCLOUD} services list --enabled \\
+            --filter="config.name:cloudidentity.googleapis.com" \\
+            --format="value(config.name)" \\
             --project={stage.gae_project}
         """)
     _, out, _ = shared.execute_command(
