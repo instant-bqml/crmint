@@ -20,11 +20,16 @@ function parse_command_line_arguments() {
   TARGET_BRANCH=$1
   RUN_COMMAND=$2
   COMMAND_OPTIONS=$3
+  USE_VPC_FLAG=""
   CURRENT_DIR=$(pwd)
+
+  if [[ "$4" == "--use_vpc" ]]; then
+    USE_VPC_FLAG="--use_vpc"
+  fi
 
   case "${RUN_COMMAND}" in
     --bundle)
-      COMMAND="crmint bundle install"
+      COMMAND="crmint bundle install ${USE_VPC_FLAG}"
       ;;
     *)
       echo "Unknown command: ${RUN_COMMAND}" >&2
