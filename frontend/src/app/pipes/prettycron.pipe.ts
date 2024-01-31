@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc
+// Copyright 2024 Google Inc
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,12 +20,23 @@ import cronstrue from 'cronstrue';
 })
 export class PrettycronPipe implements PipeTransform {
 
-  transform(value: any, args?: any): any {
+  transform(value: string, args?: any): any {
+    if (!value || value.trim() === '') {
+      return '';
+    }
+
+    // Check for exactly five parts in the cron expression
+    const parts = value.split(/\s+/);
+    if (parts.length !== 5) {
+      console.log('Invalid cron: must have exactly 5 parts');
+      return 'Invalid cron expression: must have 5 parts';
+    }
+
     try {
       return cronstrue.toString(value);
-    } catch(err) {
+    } catch (err) {
       console.log('Cannot parse cron:', err);
-      return undefined;
+      return 'Invalid cron expression';
     }
   }
 
