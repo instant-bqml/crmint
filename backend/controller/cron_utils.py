@@ -5,7 +5,8 @@ Source: https://github.com/kipe/pycron
 License: MIT
 """
 
-import datetime
+from croniter import croniter
+from datetime import datetime
 
 
 def _to_int(value) -> int:
@@ -57,7 +58,7 @@ def cron_match(cron: str, dt: datetime.datetime = None) -> bool:
     dt: Datetime to use as reference time, defaults to `datetime.utcnow()`.
   """
   if dt is None:
-    dt = datetime.datetime.utcnow()
+    dt = datetime.utcnow()
   minute, hour, dom, month, dow = cron.strip().split(' ')
   weekday = dt.isoweekday()
   conditions = [
@@ -68,3 +69,24 @@ def cron_match(cron: str, dt: datetime.datetime = None) -> bool:
       _parse_arg(dow, 0 if weekday == 7 else weekday),
   ]
   return all(conditions)
+
+
+def is_valid_cron(cron_expression: str) -> bool:
+  """Validates a strict 5-part cron expression.
+
+  Args:
+    cron_expression: The cron expression as a string.
+
+  Returns:
+    True if the cron expression is valid, False otherwise.
+  """
+  # Check for exactly five parts in the cron expression
+  parts = cron_expression.strip().split()
+  if len(parts) != 5:
+      return False
+
+  try:
+    croniter(cron_expression, datetime.now())
+    return True
+  except (KeyError, ValueError):
+    return False
