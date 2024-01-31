@@ -36,6 +36,7 @@ import werkzeug
 from common import crmint_logging
 from common import insight
 from controller import models
+from controller.cron_utils import is_valid_cron
 
 
 _PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
@@ -115,6 +116,12 @@ class PipelineSingle(Resource):
       }, 422
 
     args = parser.parse_args()
+
+    # Validate cron expressions in the schedules
+    for schedule in args.get('schedules', []):
+      cron = schedule.get('cron')
+      if cron and not is_valid_cron(cron):
+        return {'message': f'Invalid cron expression: {cron}'}, 422
 
     pipeline.assign_attributes(args)
     pipeline.save()
