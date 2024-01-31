@@ -50,7 +50,7 @@ def _parse_arg(value: str, target: int) -> bool:
   return False
 
 
-def cron_match(cron: str, dt: datetime.datetime = None) -> bool:
+def cron_match(cron: str, dt: datetime = None) -> bool:
   """Returns True if a date falls into a cron schedule.
 
   Args:
@@ -83,7 +83,7 @@ def is_valid_cron(cron_expression: str) -> bool:
   # Check for exactly five parts in the cron expression
   parts = cron_expression.strip().split()
   if len(parts) != 5:
-      return False
+    return False
 
   try:
     croniter(cron_expression, datetime.now())
