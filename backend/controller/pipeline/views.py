@@ -119,8 +119,8 @@ class PipelineSingle(Resource):
 
     # Validate cron expressions in the schedules
     for schedule in args.get('schedules', []):
-      cron = schedule.get('cron')
-      if cron and not is_valid_cron(cron):
+      cron = schedule.get('cron', '')
+      if not is_valid_cron(cron):
         return {'message': f'Invalid cron expression: {cron}'}, 422
 
     pipeline.assign_attributes(args)
