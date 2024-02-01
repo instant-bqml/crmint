@@ -80,6 +80,11 @@ def is_valid_cron(cron_expression: str) -> bool:
   Returns:
     True if the cron expression is valid, False otherwise.
   """
+  # Trim whitespace and check if the expression is empty or only whitespace
+  cron_expression = cron_expression.strip()
+  if not cron_expression:
+    return False
+
   # Check for exactly five parts in the cron expression
   parts = cron_expression.strip().split()
   if len(parts) != 5:
