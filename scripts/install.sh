@@ -17,7 +17,8 @@
 set -e
 
 function ensure_gcloud_auth() {
-  ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format="value(account)")
+  # Get the list of accounts and select the first one if multiple accounts exist
+  ACTIVE_ACCOUNT=$(gcloud auth list --format="value(account)" | head -n 1)
 
   if [ -z "$ACTIVE_ACCOUNT" ]; then
     echo "No active Google Cloud account is selected."
