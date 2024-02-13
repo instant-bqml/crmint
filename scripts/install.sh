@@ -16,6 +16,22 @@
 
 set -e
 
+function ensure_gcloud_auth() {
+  ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format="value(account)")
+
+  if [ -z "$ACTIVE_ACCOUNT" ]; then
+    echo "No active Google Cloud account is selected."
+    echo "Please authenticate with your Google Cloud account to continue."
+    gcloud auth login
+    if [ $? -ne 0 ]; then
+      echo "Authentication failed, exiting."
+      exit 1
+    fi
+  else
+    echo "Active Google Cloud account is set to $ACTIVE_ACCOUNT"
+  fi
+}
+
 function ensure_gcloud_project_set() {
   CURRENT_PROJECT=$(gcloud config get-value project)
 
@@ -131,6 +147,7 @@ function run_command_line() {
 # Main script execution
 parse_command_line_arguments "$@"
 ensure_gcloud_project_set
+ensure_gcloud_auth
 clone_and_checkout_repository
 install_command_line
 add_wrapper_function_to_bashrc
