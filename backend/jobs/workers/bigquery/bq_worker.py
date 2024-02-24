@@ -14,14 +14,16 @@
 
 """CRMint's abstract worker dealing with BigQuery."""
 
-
+import json
+import os
 import time
 
 from google.api_core.client_info import ClientInfo
 from google.cloud import bigquery
 from jobs.workers import worker
 
-USER_AGENT = 'cloud-solutions/crmint-ibqml-usage-v2'
+PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../../../')
+CONFIG_PATH = os.path.join(PROJECT_DIR, 'consent', 'bigquery_opt_in.json')
 
 
 class BQWorker(worker.Worker):
@@ -34,9 +36,20 @@ class BQWorker(worker.Worker):
   ]
 
   def _get_client(self):
+    try:
+      with open(CONFIG_PATH, 'r') as fp:
+        config = json.load(fp)
+      bigquery_opt_in = config.get('bigquery_opt_in', False)
+    except FileNotFoundError:
+      bigquery_opt_in = False
+    if bigquery_opt_in:
+      client_info = ClientInfo(
+        user_agent='cloud-solutions/crmint-ibqml-usage-v2')
+    else:
+      client_info = None
     return bigquery.Client(
-        client_options={'scopes': self._SCOPES},
-        client_info=ClientInfo(user_agent=USER_AGENT),
+      client_options={'scopes': self._SCOPES},
+      client_info=client_info,
     )
 
   def _get_prefix(self):
