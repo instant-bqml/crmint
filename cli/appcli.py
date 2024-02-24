@@ -61,7 +61,7 @@ class CRMintCLI(click.MultiCommand):
       fg='yellow')
     msg += click.style('CRMint', fg='red', bold=True)
     msg += click.style(
-      ' better! \nMay we anonymously report usage statistics to BigQuery to improve the tool over time?',
+      ' better! \nMay we anonymously report usage statistics from BigQuery to improve the tool over time?',
       fg='yellow')
     msg += click.style(f'\n{SEPARATOR}', fg='black')
     return click.confirm(msg, default=True)
