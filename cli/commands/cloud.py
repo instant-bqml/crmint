@@ -775,16 +775,16 @@ def _copy_src_to_workdir(stage, debug=False):
                      ignore=shutil.ignore_patterns(*exclude_patterns))
     return 0, 'Copied sources', ''
 
-  def _copy_insight_config() -> Tuple[int, str, str]:
-    insight_filepath = pathlib.Path(
-        constants.PROJECT_DIR, 'backend/data/insight.json')
-    if not insight_filepath.exists():
-      return 0, 'No insight.json', ''
+  def _copy_bigquery_opt_in_config() -> Tuple[int, str, str]:
+    bigquery_opt_in_filepath = pathlib.Path(
+      constants.PROJECT_DIR, 'backend/consent/bigquery_opt_in.json')
+    if not bigquery_opt_in_filepath.exists():
+      return 0, 'No bigquery_opt_in.json', ''
     else:
       shutil.copy(
-          insight_filepath,
-          pathlib.Path(stage.workdir, 'backend/data/insight.json'))
-      return 0, 'Copied insight.json', ''
+        bigquery_opt_in_filepath,
+        pathlib.Path(stage.workdir, 'backend/consent/bigquery_opt_in.json'))
+      return 0, 'Copied bigquery_opt_in.json', ''
 
   def _update_app_data() -> Tuple[int, str, str]:
     app_data_filepath = pathlib.Path(stage.workdir, 'backend/data/app.json')
@@ -811,7 +811,7 @@ def _copy_src_to_workdir(stage, debug=False):
 
   cmds = [
       _copy_sources,
-      _copy_insight_config,
+      _copy_bigquery_opt_in_config,
       _update_app_data,
       _update_prod_env,
   ]
