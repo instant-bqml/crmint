@@ -33,9 +33,12 @@ from cli.utils import shared
 SEPARATOR = '='*74
 
 
-def _set_insight_opt_out(config, value):
-  config['opt_out'] = value
-  with open(insight.INSIGHT_CONF_FILEPATH, 'w+') as fp:
+def _set_bigquery_opt_in(value):
+  config = {'bigquery_opt_in': value}
+  config_path = os.path.join(
+    PROJECT_DIR, 'backend', 'consent', 'bigquery_opt_in.json')
+  os.makedirs(os.path.dirname(config_path), exist_ok=True)
+  with open(config_path, 'w+') as fp:
     json.dump(config, fp)
 
 
@@ -54,18 +57,14 @@ class CRMintCLI(click.MultiCommand):
     pkg_name = 'CRMint'
     msg = click.style(SEPARATOR, fg='black')
     msg += click.style(
-        '\nWe\'re constantly looking for ways to make ',
-        fg='yellow')
-    msg += click.style(pkg_name, fg='red', bold=True)
+      '\nWe\'re constantly looking for ways to make ',
+      fg='yellow')
+    msg += click.style('CRMint', fg='red', bold=True)
     msg += click.style(
-        ' better! \nMay we anonymously report usage statistics to improve the '
-        'tool over time? \nMore info: https://github.com/google/crmint & '
-        'https://google.github.io/crmint',
-        fg='yellow')
+      ' better! \nMay we anonymously report usage statistics to BigQuery to improve the tool over time?',
+      fg='yellow')
     msg += click.style(f'\n{SEPARATOR}', fg='black')
-    if click.confirm(msg, default=True):
-      return True
-    return False
+    return click.confirm(msg, default=True)
 
   def list_commands(self, ctx):
     rv = []
@@ -88,19 +87,8 @@ class CRMintCLI(click.MultiCommand):
     return getattr(module, 'cli', None)
 
   def resolve_command(self, ctx, args):
-    self.insight = insight.GAProvider()
-    if '--no-insight' in args:
-      args.remove('--no-insight')
-      _set_insight_opt_out(self.insight.config, True)
-    if self.insight.opt_out is None:
-      # None means that we still didn't record the user consent.
-      self.insight.track('downloaded')
-      permission_given = self._ask_permission()
-      _set_insight_opt_out(self.insight.config, not permission_given)
-      # Reload with the new configuration.
-      self.insight = insight.GAProvider()
-      self.insight.track('installed')
-    self.insight.track(*args)
+    bigquery_opt_in = self._ask_permission()
+    _set_bigquery_opt_in(bigquery_opt_in)
     return super(CRMintCLI, self).resolve_command(ctx, args)
 
 
