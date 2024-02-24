@@ -54,7 +54,6 @@ class CRMintCLI(click.MultiCommand):
   """App multi commands CLI."""
 
   def _ask_permission(self):
-    pkg_name = 'CRMint'
     msg = click.style(SEPARATOR, fg='black')
     msg += click.style(
       '\nWe\'re constantly looking for ways to make ',
