@@ -204,6 +204,7 @@ class PipelineExport(Resource):
 
     data = {
         'name': pipeline.name,
+        'run_on_schedule': pipeline.run_on_schedule,
         'jobs': jobs,
         'params': pipeline_params,
         'schedules': pipeline_schedules

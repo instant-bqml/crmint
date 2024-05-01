@@ -318,6 +318,7 @@ class Pipeline(extensions.db.Model):
       mailers.NotificationMailer().finished_pipeline(self)
 
   def import_data(self, data):
+    self.run_on_schedule = data.get('run_on_schedule', False)
     self.assign_params(data['params'])
     self.assign_schedules(data['schedules'])
     job_mapping = {}
