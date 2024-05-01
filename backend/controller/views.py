@@ -23,6 +23,7 @@ from flask_restful import Resource
 
 from controller import ads_auth_code
 from controller import app_data
+from controller import database
 from controller import models
 
 # from google.appengine.api import urlfetch
@@ -135,6 +136,15 @@ class GeneralSettingsRoute(Resource):
     return settings
 
 
+class ResetStatuses(Resource):
+  """Endpoint to reset pipelines and jobs statuses."""
+
+  def post(self):
+    database.reset_jobs_and_pipelines_statuses_to_idle()
+    return '', 200
+
+
 api.add_resource(Configuration, '/configuration')
 api.add_resource(GlobalVariable, '/global_variables')
 api.add_resource(GeneralSettingsRoute, '/general_settings')
+api.add_resource(ResetStatuses, '/reset/statuses')

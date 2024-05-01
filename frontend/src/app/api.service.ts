@@ -43,4 +43,13 @@ export class ApiService {
   protected removeContentTypeHeader() {
     delete this.options.headers['Content-Type'];
   }
+
+  /**
+   * Reset options effectively removing headers and parameters.
+   */
+  protected resetOptions() {
+    this.options = {
+      headers: {}
+    };
+  }
 }
