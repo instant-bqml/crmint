@@ -58,7 +58,7 @@ export class PipelinesService extends ApiService {
 
   startPipeline(id, manual: boolean = false) {
     this.addContentTypeHeader();
-    return this.http.post(this.getPipelineUrl(id) + '/start', { manual: true }, this.options)
+    return this.http.post(this.getPipelineUrl(id) + '/start', { manual: manual }, this.options)
                     .toPromise()
                     .catch(this.handleError);
   }

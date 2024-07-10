@@ -223,7 +223,7 @@ class Pipeline(extensions.db.Model):
     for job in self.jobs:
       job.start()
 
-  def start(self) -> bool:
+  def start(self, manual=False) -> bool:
     """Returns True if all jobs have been started."""
     if self.status == self.STATUS.RUNNING:
       crmint_logging.log_message(
