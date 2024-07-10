@@ -170,6 +170,10 @@ export class SettingsComponent implements OnInit {
     this.resetStatusesRunning = true;
     this.settingsService.resetStatuses(() => {
       this.resetStatusesRunning = false;
+    })
+    .catch(err => {
+      this.resetStatusesRunning = false;
+      console.error('Error resetting statuses:', err);
     });
   }
 

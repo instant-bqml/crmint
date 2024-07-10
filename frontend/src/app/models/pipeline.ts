@@ -28,6 +28,7 @@ export class Pipeline {
   run_on_schedule: boolean;
   sid: string;
   has_jobs: boolean;
+  is_manual_run: boolean = false;
 
   @Type(() => Schedule)
   schedules: Schedule[] = [];
@@ -36,7 +37,7 @@ export class Pipeline {
   params: Param[] = [];
 
   blocked_running(): boolean {
-    return this.run_on_schedule;
+    return false; // Allow manual execution regardless of the run_on_schedule flag
   }
   blocked_stopping(): boolean {
     return this.status === 'stopping';

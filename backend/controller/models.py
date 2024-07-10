@@ -225,6 +225,24 @@ class Pipeline(extensions.db.Model):
 
   def start(self) -> bool:
     """Returns True if all jobs have been started."""
+    if self.status == self.STATUS.RUNNING:
+      crmint_logging.log_message(
+        'Pipeline is already running.',
+        log_level='INFO',
+        worker_class='N/A',
+        pipeline_id=self.id,
+        job_id=0
+      )
+      return False
+
+    crmint_logging.log_message(
+      f'Starting pipeline {"manually" if manual else "on schedule"}.',
+      log_level='INFO',
+      worker_class='N/A',
+      pipeline_id=self.id,
+      job_id=0
+    )
+    
     ready_status = self.get_ready()
     if ready_status == PipelineReadyStatus.READY:
       self._start()

@@ -45,11 +45,31 @@ def load_fixtures(logger_func: Optional[Callable[[str], None]] = None) -> None:
 
 
 def reset_jobs_and_pipelines_statuses_to_idle() -> None:
-  models.TaskEnqueued.query.delete()
-  for pipeline in models.Pipeline.all():
-    for job in pipeline.jobs:
-      job.update(status='idle')
-    pipeline.update(status='idle')
+  """Resets the statuses of all jobs and pipelines to 'idle'."""
+  session = extensions.db.session
+  batch_size = 1000
+  offset = 0
+
+  # Reset job statuses in batches
+  while True:
+    jobs = session.query(models.Job).offset(offset).limit(batch_size).all()
+    if not jobs:
+      break
+    for job in jobs:
+      job.status = 'idle'
+    session.commit()
+    offset += batch_size
+
+  # Reset pipeline statuses in batches
+  offset = 0
+  while True:
+    pipelines = session.query(models.Pipeline).offset(offset).limit(batch_size).all()
+    if not pipelines:
+      break
+    for pipeline in pipelines:
+      pipeline.status = 'idle'
+    session.commit()
+    offset += batch_size
 
 
 def shutdown(app: flask.Flask) -> None:

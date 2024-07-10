@@ -140,8 +140,11 @@ class ResetStatuses(Resource):
   """Endpoint to reset pipelines and jobs statuses."""
 
   def post(self):
-    database.reset_jobs_and_pipelines_statuses_to_idle()
-    return '', 200
+    try:
+      database.reset_jobs_and_pipelines_statuses_to_idle()
+      return '', 200
+    except Exception as e:
+      return {'error': str(e)}, 500
 
 
 api.add_resource(Configuration, '/configuration')

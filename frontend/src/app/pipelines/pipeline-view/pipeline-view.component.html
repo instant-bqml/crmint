@@ -14,7 +14,9 @@
     <!-- LOADED -->
     <ng-template ngSwitchCase="loaded">
       <mat-card-title>
-        {{pipeline.name}}
+        <div class="pipeline-title-container">
+          <span class="pipeline-title">{{pipeline.name}}</span>
+        </div>
         <div class="crmi-card-title-buttons">
           <button mat-raised-button color="warn" (click)="stopPipeline()" *ngIf="pipeline.showed_stopping()" [disabled]="pipeline.blocked_stopping()">
             <mat-icon>stop_arrow</mat-icon>

@@ -161,7 +161,7 @@ class PipelineStart(Resource):
   @marshal_with(pipeline_fields)
   def post(self, pipeline_id):
     pipeline = models.Pipeline.find(pipeline_id)
-    pipeline.start()
+    pipeline.start(manual=True)
     tracker = insight.GAProvider()
     tracker.track_event(category='pipelines', action='manual_run')
     return pipeline

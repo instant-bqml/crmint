@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Router, ActivatedRoute } from '@angular/router';
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { plainToClass } from 'class-transformer';
 
 import { Job } from 'app/models/job';
@@ -26,13 +26,14 @@ import { Pipeline } from 'app/models/pipeline';
   templateUrl: './pipeline-view.component.html',
   styleUrls: ['./pipeline-view.component.sass'],
 })
-export class PipelineViewComponent implements OnInit {
+export class PipelineViewComponent implements OnInit, OnDestroy {
   @ViewChild('graph', { static: false }) graph;
   @ViewChild('pipelineLogs', { static: false }) pipelineLogs;
   pipeline: Pipeline = new Pipeline();
   jobs: Job[] = [];
   state = 'loading'; // State has one of values: loading, loaded, error
   indexTabActivated = 0;
+  private refreshIntervalId: any;
 
   constructor(
     private router: Router,
@@ -106,7 +107,7 @@ export class PipelineViewComponent implements OnInit {
   }
 
   startPipeline() {
-    this.pipelinesService.startPipeline(this.pipeline.id)
+    this.pipelinesService.startPipeline(this.pipeline.id, true)
                          .then(data => {
                            this.pipeline = plainToClass(Pipeline, data as Pipeline);
                            this.loadJobs(this.pipeline.id);
@@ -114,14 +115,38 @@ export class PipelineViewComponent implements OnInit {
   }
 
   startAutorefresh() {
-    if (!this.pipeline.is_active()) {
-      return;
+    const refreshInterval = 10000; // Refresh every 10 seconds
+    const refresh = () => {
+      this.pipelinesService.getPipeline(this.pipeline.id)
+        .then(pipeline => {
+          this.pipeline = plainToClass(Pipeline, pipeline as Pipeline);
+          if (this.pipeline.is_active()) {
+            this.loadJobs(this.pipeline.id);
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching pipeline status:', error);
+        });
+    };
+
+    // Clear any existing interval to prevent multiple intervals
+    if (this.refreshIntervalId) {
+      clearInterval(this.refreshIntervalId);
     }
-    setTimeout(() => {
-      if (this.pipeline.is_active()) {
-        this.loadJobs(this.pipeline.id);
-      }
-    }, 10000);
+
+    // Initial call to refresh
+    refresh();
+
+    // Set interval to refresh periodically
+    this.refreshIntervalId = setInterval(() => {
+      refresh();
+    }, refreshInterval);
+  }
+
+  ngOnDestroy() {
+    if (this.refreshIntervalId) {
+      clearInterval(this.refreshIntervalId);
+    }
   }
 
   stopPipeline() {
