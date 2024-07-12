@@ -298,11 +298,8 @@ class Pipeline(extensions.db.Model):
     return True
 
   def has_stopped(self) -> bool:
-    """Returns True if a pipeline was stopped and has jobs in idle status."""
-    for job in self.jobs:
-      if job.status in Job.STATUS.IDLE:
-        return True
-    return False
+    """Returns True if a pipeline was stopped and all jobs are in inactive status."""
+    return self.status == Pipeline.STATUS.STOPPING and all(job.status in Job.STATUS.INACTIVE_STATUSES for job in self.jobs)
 
   def has_failed(self) -> bool:
     """Returns True if a pipeline is in a failed state.
@@ -334,6 +331,11 @@ class Pipeline(extensions.db.Model):
     elif self.has_finished():
       self.set_status(Pipeline.STATUS.SUCCEEDED)
       mailers.NotificationMailer().finished_pipeline(self)
+
+    # Check if all jobs are in an inactive state
+    if all(job.status in Job.STATUS.INACTIVE_STATUSES for job in self.jobs):
+      if self.status == Pipeline.STATUS.STOPPING:
+        self.set_status(Pipeline.STATUS.IDLE)
 
   def import_data(self, data):
     self.run_on_schedule = data.get('run_on_schedule', False)
@@ -726,6 +728,10 @@ class Job(extensions.db.Model):
     stopping_signal = self.status == Job.STATUS.STOPPING
     self.set_status(new_job_status)
 
+    # If the job was stopping and now has no running tasks, set it to IDLE
+    if stopping_signal and num_running_tasks == 0:
+      self.set_status(Job.STATUS.IDLE)
+
     # Once the job status has been updated, we can check if the pipeline has
     # already been marked failed to avoid notifying multiple times users.
     if self.pipeline.status == Pipeline.STATUS.FAILED:
@@ -739,6 +745,17 @@ class Job(extensions.db.Model):
     if self.dependent_jobs and not stopping_signal and waiting_signal:
       self._start_dependent_jobs()
       return 0
+
+    # Check if the pipeline is in STOPPING state and all jobs are idle
+    if self.pipeline.status == Pipeline.STATUS.STOPPING:
+      if all(job.status in Job.STATUS.INACTIVE_STATUSES for job in self.pipeline.jobs):
+        self.pipeline.set_status(Pipeline.STATUS.IDLE)
+        crmint_logging.log_message(
+          'Pipeline has been stopped successfully.',
+          log_level='INFO',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id)
 
     self.pipeline.leaf_job_finished()
     return 0
