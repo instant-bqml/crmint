@@ -347,6 +347,19 @@ class Pipeline(extensions.db.Model):
       self.set_status(Pipeline.STATUS.SUCCEEDED)
       mailers.NotificationMailer().finished_pipeline(self)
 
+    # Transition remaining jobs to IDLE if they are no longer needed.
+    for job in self.jobs:
+      if job.status == Job.STATUS.WAITING and not self._is_job_needed(job):
+        job.status = Job.STATUS.IDLE
+        job.save()
+
+  def _is_job_needed(self, job):
+    """Determine if a job is still needed based on the pipeline's state."""
+    # Check if the pipeline has completed on one branch
+    if self.status in [Pipeline.STATUS.SUCCEEDED, Pipeline.STATUS.FAILED]:
+      return False
+    return True
+
   def import_data(self, data):
     self.run_on_schedule = data.get('run_on_schedule', False)
     self.assign_params(data['params'])
