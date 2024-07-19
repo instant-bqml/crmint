@@ -242,7 +242,7 @@ class Pipeline(extensions.db.Model):
       pipeline_id=self.id,
       job_id=0
     )
-    
+
     ready_status = self.get_ready()
     if ready_status == PipelineReadyStatus.READY:
       self._start()
@@ -326,9 +326,21 @@ class Pipeline(extensions.db.Model):
   def leaf_job_finished(self) -> None:
     """Determines if the pipeline should be considered finished or failed."""
     if self.has_failed():
-      self.stop()
-      self.set_status(Pipeline.STATUS.FAILED)
-      mailers.NotificationMailer().finished_pipeline(self)
+      # Check if there is a subsequent job with a precondition for the failed job to fail
+      for job in self.jobs:
+        if job.status == Job.STATUS.FAILED:
+          for subsequent_job in self.jobs:
+            if subsequent_job.has_precondition_for_failure(job):
+              if subsequent_job.status == Job.STATUS.SUCCEEDED:
+                # If the subsequent job succeeded, consider the pipeline successful
+                self.set_status(Pipeline.STATUS.SUCCEEDED)
+                mailers.NotificationMailer().finished_pipeline(self)
+                return
+          # If no such subsequent job exists, mark the pipeline as failed
+          self.stop()
+          self.set_status(Pipeline.STATUS.FAILED)
+          mailers.NotificationMailer().finished_pipeline(self)
+          return
     elif self.has_stopped():
       self.set_status(Pipeline.STATUS.IDLE)
     elif self.has_finished():
@@ -592,16 +604,19 @@ class Job(extensions.db.Model):
       if preceding_job_status != Job.STATUS.SUCCEEDED:
         return False
     elif start_condition.condition == StartCondition.CONDITION.FAIL:
-      if preceding_job_status == Job.STATUS.SUCCEEDED:
+      if preceding_job_status != Job.STATUS.FAILED:
         return False
     return True
 
   def _start_dependent_jobs(self) -> list[TaskEnqueued]:
     enqueued_tasks = []
-    for job in self.dependent_jobs:
-      started_task = job.start()
-      if started_task:
-        enqueued_tasks.append(started_task)
+    for dependent_job in self.dependent_jobs:
+      for start_condition in dependent_job.start_conditions:
+        if not self._start_condition_is_fulfilled(start_condition):
+          continue
+        started_task = dependent_job.start()
+        if started_task:
+          enqueued_tasks.append(started_task)
     return enqueued_tasks
 
   def start(self) -> Union[TaskEnqueued, None]:
@@ -740,8 +755,24 @@ class Job(extensions.db.Model):
       self._start_dependent_jobs()
       return 0
 
+    for dependent_job in self.dependent_jobs:
+      if dependent_job.start_conditions_met():
+        dependent_job.status = Job.STATUS.IDLE
+        dependent_job.save()
+        dependent_job.start()
+
     self.pipeline.leaf_job_finished()
     return 0
+
+  def start_conditions_met(self):
+    """Checks if all start conditions for the job are met."""
+    for condition in self.start_conditions:
+      preceding_job = Job.objects.get(id=condition.preceding_job_id)
+      if condition.condition == StartCondition.CONDITION.SUCCESS and preceding_job.status != Job.STATUS.SUCCEEDED:
+        return False
+      if condition.condition == StartCondition.CONDITION.FAIL and preceding_job.status != Job.STATUS.FAILED:
+        return False
+    return True
 
   def task_succeeded(self, task_name: str) -> int:
     return self._task_finished(task_name, Job.STATUS.SUCCEEDED)
@@ -758,6 +789,12 @@ class Job(extensions.db.Model):
       # Sets the status as stopping, waiting for the task to complete.
       self.set_status(Job.STATUS.STOPPING)
       return True
+    return False
+
+  def has_precondition_for_failure(self, preceding_job):
+    for condition in self.start_conditions:
+      if condition.preceding_job_id == preceding_job.id and condition.condition == StartCondition.CONDITION.FAIL:
+        return True
     return False
 
 
