@@ -772,9 +772,10 @@ class Job(extensions.db.Model):
 
     for dependent_job in self.dependent_jobs:
       if dependent_job.start_conditions_met():
-        dependent_job.status = Job.STATUS.IDLE
-        dependent_job.save()
-        dependent_job.start()
+        if dependent_job.status not in [Job.STATUS.FAILED, Job.STATUS.SUCCEEDED]:
+          dependent_job.status = Job.STATUS.IDLE
+          dependent_job.save()
+          dependent_job.start()
 
     self.pipeline.leaf_job_finished()
     return 0
