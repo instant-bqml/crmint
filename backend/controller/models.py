@@ -325,35 +325,35 @@ class Pipeline(extensions.db.Model):
   # TODO(dulacp): rename this method to `job_finished`
   def leaf_job_finished(self) -> None:
     """Determines if the pipeline should be considered finished or failed."""
-      logging.info(f"Checking if pipeline {self.id} has finished.")
-      
-      if self.has_failed():
-        logging.info(f"Pipeline {self.id} has failed.")
-        for job in self.jobs:
-          if job.status == Job.STATUS.FAILED:
-            for subsequent_job in self.jobs:
-              if subsequent_job.has_precondition_for_failure(job):
-                if subsequent_job.status == Job.STATUS.SUCCEEDED:
-                  self.set_status(Pipeline.STATUS.SUCCEEDED)
-                  mailers.NotificationMailer().finished_pipeline(self)
-                  return
-            self.stop()
-            self.set_status(Pipeline.STATUS.FAILED)
-            mailers.NotificationMailer().finished_pipeline(self)
-            return
-      elif self.has_stopped():
-        logging.info(f"Pipeline {self.id} has stopped.")
-        self.set_status(Pipeline.STATUS.IDLE)
-      elif self.has_finished():
-        logging.info(f"Pipeline {self.id} has finished successfully.")
-        self.set_status(Pipeline.STATUS.SUCCEEDED)
-        mailers.NotificationMailer().finished_pipeline(self)
-
+    logging.info(f"Checking if pipeline {self.id} has finished.")
+    
+    if self.has_failed():
+      logging.info(f"Pipeline {self.id} has failed.")
       for job in self.jobs:
-        if job.status == Job.STATUS.WAITING and not self._is_job_needed(job):
-          logging.info(f"Setting job {job.id} to IDLE as it is no longer needed.")
-          job.status = Job.STATUS.IDLE
-          job.save()
+        if job.status == Job.STATUS.FAILED:
+          for subsequent_job in self.jobs:
+            if subsequent_job.has_precondition_for_failure(job):
+              if subsequent_job.status == Job.STATUS.SUCCEEDED:
+                self.set_status(Pipeline.STATUS.SUCCEEDED)
+                mailers.NotificationMailer().finished_pipeline(self)
+                return
+          self.stop()
+          self.set_status(Pipeline.STATUS.FAILED)
+          mailers.NotificationMailer().finished_pipeline(self)
+          return
+    elif self.has_stopped():
+      logging.info(f"Pipeline {self.id} has stopped.")
+      self.set_status(Pipeline.STATUS.IDLE)
+    elif self.has_finished():
+      logging.info(f"Pipeline {self.id} has finished successfully.")
+      self.set_status(Pipeline.STATUS.SUCCEEDED)
+      mailers.NotificationMailer().finished_pipeline(self)
+
+    for job in self.jobs:
+      if job.status == Job.STATUS.WAITING and not self._is_job_needed(job):
+        logging.info(f"Setting job {job.id} to IDLE as it is no longer needed.")
+        job.status = Job.STATUS.IDLE
+        job.save()
 
   def _is_job_needed(self, job):
     """Determine if a job is still needed based on the pipeline's state."""
