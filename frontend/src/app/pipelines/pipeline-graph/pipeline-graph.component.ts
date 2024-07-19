@@ -45,6 +45,15 @@ export class PipelineGraphComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.jobs.forEach(job => {
+      console.log(`Job ID: ${job.id}, Status: ${job.status}`);
+      job.start_conditions.forEach(condition => {
+        const parentJob = this.jobs.find(j => j.id === condition.preceding_job_id);
+        if (parentJob) {
+          console.log(`Parent Job ID: ${parentJob.id}, Status: ${parentJob.status}`);
+        }
+      });
+    });
   }
 
   redraw() {
