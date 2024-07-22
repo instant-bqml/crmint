@@ -326,9 +326,21 @@ class Pipeline(extensions.db.Model):
   def leaf_job_finished(self) -> None:
     """Determines if the pipeline should be considered finished or failed."""
     if self.has_failed():
-      self.stop()
-      self.set_status(Pipeline.STATUS.FAILED)
-      mailers.NotificationMailer().finished_pipeline(self)
+      # Check if there is a subsequent job with a precondition for the failed job to fail
+      for job in self.jobs:
+        if job.status == Job.STATUS.FAILED:
+          for subsequent_job in self.jobs:
+            if subsequent_job.has_precondition_for_failure(job):
+              if subsequent_job.status == Job.STATUS.SUCCEEDED:
+                # If the subsequent job succeeded, consider the pipeline successful
+                self.set_status(Pipeline.STATUS.SUCCEEDED)
+                mailers.NotificationMailer().finished_pipeline(self)
+                return
+          # If no such subsequent job exists, mark the pipeline as failed
+          self.stop()
+          self.set_status(Pipeline.STATUS.FAILED)
+          mailers.NotificationMailer().finished_pipeline(self)
+          return
     elif self.has_stopped():
       self.set_status(Pipeline.STATUS.IDLE)
     elif self.has_finished():
@@ -592,16 +604,19 @@ class Job(extensions.db.Model):
       if preceding_job_status != Job.STATUS.SUCCEEDED:
         return False
     elif start_condition.condition == StartCondition.CONDITION.FAIL:
-      if preceding_job_status == Job.STATUS.SUCCEEDED:
+      if preceding_job_status != Job.STATUS.FAILED:
         return False
     return True
 
   def _start_dependent_jobs(self) -> list[TaskEnqueued]:
     enqueued_tasks = []
-    for job in self.dependent_jobs:
-      started_task = job.start()
-      if started_task:
-        enqueued_tasks.append(started_task)
+    for dependent_job in self.dependent_jobs:
+      for start_condition in dependent_job.start_conditions:
+        if not self._start_condition_is_fulfilled(start_condition):
+          continue
+        started_task = dependent_job.start()
+        if started_task:
+          enqueued_tasks.append(started_task)
     return enqueued_tasks
 
   def start(self) -> Union[TaskEnqueued, None]:
