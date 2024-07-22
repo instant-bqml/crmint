@@ -811,8 +811,8 @@ class Job(extensions.db.Model):
             dependent_job.start()
             subsequent_job_started = True
             break
-          if subsequent_job_started:
-            break
+        if subsequent_job_started:
+          break
       if not subsequent_job_started:
         self.pipeline.leaf_job_finished()
     except Exception as e:
