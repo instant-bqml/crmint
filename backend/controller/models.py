@@ -327,25 +327,55 @@ class Pipeline(extensions.db.Model):
     """Determines if the pipeline should be considered finished or failed."""
     try:
       if self.has_failed():
-        logging.info(f"Pipeline {self.id} has failed.")
+        crmint_logging.log_message(
+          f"Pipeline {self.id} has failed.",
+          log_level='INFO',
+          worker_class=self.__class__.__name__,
+          pipeline_id=self.id,
+          job_id=None
+        )
         self.stop()
         self.set_status(Pipeline.STATUS.FAILED)
         mailers.NotificationMailer().finished_pipeline(self)
       elif self.has_stopped():
-        logging.info(f"Pipeline {self.id} is idle.")
+        crmint_logging.log_message(
+          f"Pipeline {self.id} is idle.",
+          log_level='INFO',
+          worker_class=self.__class__.__name__,
+          pipeline_id=self.id,
+          job_id=None
+        )
         self.set_status(Pipeline.STATUS.IDLE)
       elif self.has_finished():
-        logging.info(f"Pipeline {self.id} has succeeded.")
+        crmint_logging.log_message(
+          f"Pipeline {self.id} has succeeded.",
+          log_level='INFO',
+          worker_class=self.__class__.__name__,
+          pipeline_id=self.id,
+          job_id=None
+        )
         self.set_status(Pipeline.STATUS.SUCCEEDED)
         mailers.NotificationMailer().finished_pipeline(self)
       else:
         # Check if any job failed and started a subsequent job
         for job in self.jobs:
           if job.status == Job.STATUS.FAILED:
-            logging.info(f"Job {job.id} in pipeline {self.id} failed. Checking for subsequent jobs.")
+            crmint_logging.log_message(
+              f"Job {job.id} in pipeline {self.id} failed. Checking for subsequent jobs.",
+              log_level='INFO',
+              worker_class=self.__class__.__name__,
+              pipeline_id=self.id,
+              job_id=job.id
+            )
             job.handle_failure_and_start_subsequent()
     except Exception as e:
-      logging.error(f"Error finalizing pipeline {self.id}: {e}")
+      crmint_logging.log_message(
+        f"Error finalizing pipeline {self.id}: {e}",
+        log_level='ERROR',
+        worker_class=self.__class__.__name__,
+        pipeline_id=self.id,
+        job_id=None
+      )
       raise
 
   def import_data(self, data):
@@ -760,21 +790,39 @@ class Job(extensions.db.Model):
     """Handles job failure and starts a subsequent job if conditions are met."""
     try:
       self.set_status(Job.STATUS.FAILED)
-      logging.info(f"Job {self.id} failed. Checking for dependent jobs.")
+      crmint_logging.log_message(
+        f"Job {self.id} failed. Checking for dependent jobs.",
+        log_level='INFO',
+        worker_class=self.__class__.__name__,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id
+      )
       subsequent_job_started = False
       for dependent_job in self.dependent_jobs:
         for condition in dependent_job.start_conditions:
           if condition.preceding_job_id == self.id and condition.condition == StartCondition.CONDITION.FAIL:
-            logging.info(f"Starting dependent job {dependent_job.id} due to failure of job {self.id}.")
+            crmint_logging.log_message(
+              f"Starting dependent job {dependent_job.id} due to failure of job {self.id}.",
+              log_level='INFO',
+              worker_class=self.__class__.__name__,
+              pipeline_id=self.pipeline_id,
+              job_id=self.id
+            )
             dependent_job.start()
             subsequent_job_started = True
             break
-        if subsequent_job_started:
-          break
+          if subsequent_job_started:
+            break
       if not subsequent_job_started:
         self.pipeline.leaf_job_finished()
     except Exception as e:
-      logging.error(f"Error handling job failure for job {self.id}: {e}")
+      crmint_logging.log_message(
+        f"Error handling job failure for job {self.id}: {e}",
+        log_level='ERROR',
+        worker_class=self.__class__.__name__,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id
+      )
       raise
 
   def task_succeeded(self, task_name: str) -> int:
