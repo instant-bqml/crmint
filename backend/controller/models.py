@@ -362,6 +362,19 @@ class Pipeline(extensions.db.Model):
       return False
     return True
 
+  def update_pipeline_status(self):
+    """Update the pipeline status based on the status of all jobs."""
+    all_jobs = Job.objects.filter(pipeline_id=self.id)
+    if all(job.status == Job.STATUS.SUCCEEDED for job in all_jobs):
+      self.status = Pipeline.STATUS.SUCCEEDED
+    elif any(job.status == Job.STATUS.FAILED for job in all_jobs):
+      self.status = Pipeline.STATUS.FAILED
+    elif any(job.status == Job.STATUS.RUNNING for job in all_jobs):
+      self.status = Pipeline.STATUS.RUNNING
+    else:
+      self.status = Pipeline.STATUS.IDLE
+    self.save()
+
   def import_data(self, data):
     self.run_on_schedule = data.get('run_on_schedule', False)
     self.assign_params(data['params'])
@@ -776,7 +789,10 @@ class Job(extensions.db.Model):
           dependent_job.status = Job.STATUS.IDLE
           dependent_job.save()
           dependent_job.start()
+        else:
+          logging.info(f"Dependent job {dependent_job.id} is in a terminal state: {dependent_job.status}")
 
+    self.pipeline.update_pipeline_status()
     self.pipeline.leaf_job_finished()
     return 0
 
