@@ -353,6 +353,12 @@ class Pipeline(extensions.db.Model):
         # For pipelines that splinter
         if any(job.status == Job.STATUS.SUCCEEDED for job in end_jobs):
           self.set_status(Pipeline.STATUS.SUCCEEDED)
+          # Set all other jobs to IDLE
+          for job in self.jobs:
+            if job.status in [Job.STATUS.WAITING, Job.STATUS.RUNNING]:
+              job.stop()
+              job.status = Job.STATUS.IDLE
+              job.save()
         elif all(job.status in [Job.STATUS.FAILED, Job.STATUS.IDLE] for job in end_jobs):
           self.set_status(Pipeline.STATUS.FAILED)
         else:
@@ -368,15 +374,6 @@ class Pipeline(extensions.db.Model):
         else:
           self.set_status(Pipeline.STATUS.IDLE)
 
-    # Check if any end job has succeeded
-    end_jobs = [job for job in self.jobs if self.is_end_node(job)]
-    if any(job.status == Job.STATUS.SUCCEEDED for job in end_jobs):
-      # Transition remaining jobs to IDLE if they are in WAITING state
-      for job in self.jobs:
-        if job.status == Job.STATUS.WAITING:
-          job.status = Job.STATUS.IDLE
-          job.save()
-
     # Transition remaining jobs to IDLE if they are no longer needed
     for job in self.jobs:
       if job.status == Job.STATUS.WAITING and not self._is_job_needed(job):
@@ -388,6 +385,14 @@ class Pipeline(extensions.db.Model):
       mailers.NotificationMailer().finished_pipeline(self)
     elif self.status != Pipeline.STATUS.RUNNING and any(job.status == Job.STATUS.RUNNING for job in self.jobs):
       self.set_status(Pipeline.STATUS.RUNNING)
+
+    # Ensure all jobs are IDLE when pipeline is not running
+    if self.status in [Pipeline.STATUS.SUCCEEDED, Pipeline.STATUS.FAILED, Pipeline.STATUS.IDLE]:
+      for job in self.jobs:
+        if job.status in [Job.STATUS.WAITING, Job.STATUS.RUNNING]:
+          job.stop()
+          job.status = Job.STATUS.IDLE
+          job.save()
 
   def is_end_node(self, job):
     """Determine if a job is an end node."""
