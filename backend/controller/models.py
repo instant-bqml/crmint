@@ -349,33 +349,44 @@ class Pipeline(extensions.db.Model):
     else:
       # Check for end node jobs
       end_jobs = [job for job in self.jobs if self.is_end_node(job)]
-      if all(job.status == Job.STATUS.SUCCEEDED for job in end_jobs):
-        self.set_status(Pipeline.STATUS.SUCCEEDED)
-      elif any(job.status == Job.STATUS.FAILED for job in end_jobs):
-        self.set_status(Pipeline.STATUS.FAILED)
-      else:
-        self.set_status(Pipeline.STATUS.IDLE)
+      if end_jobs:
+        # For pipelines that splinter
+        if any(job.status == Job.STATUS.SUCCEEDED for job in end_jobs):
+          self.set_status(Pipeline.STATUS.SUCCEEDED)
+        elif all(job.status in [Job.STATUS.FAILED, Job.STATUS.IDLE] for job in end_jobs):
+          self.set_status(Pipeline.STATUS.FAILED)
+        else:
+          self.set_status(Pipeline.STATUS.RUNNING)
+        else:
+          # For pipelines that don't splinter
+          if all(job.status == Job.STATUS.SUCCEEDED for job in self.jobs):
+            self.set_status(Pipeline.STATUS.SUCCEEDED)
+          elif any(job.status == Job.STATUS.FAILED for job in self.jobs):
+            self.set_status(Pipeline.STATUS.FAILED)
+          elif any(job.status == Job.STATUS.RUNNING for job in self.jobs):
+            self.set_status(Pipeline.STATUS.RUNNING)
+          else:
+            self.set_status(Pipeline.STATUS.IDLE)
 
-    # Transition remaining jobs to IDLE if they are no longer needed.
+    # Transition remaining jobs to IDLE if they are no longer needed
     for job in self.jobs:
       if job.status == Job.STATUS.WAITING and not self._is_job_needed(job):
         job.status = Job.STATUS.IDLE
         job.save()
 
-    # Ensure the pipeline status is updated correctly after checking all jobs
-    if all(job.status in [Job.STATUS.SUCCEEDED, Job.STATUS.IDLE] for job in self.jobs):
-      self.set_status(Pipeline.STATUS.SUCCEEDED)
+    # Final check to ensure consistency
+    if self.status == Pipeline.STATUS.SUCCEEDED:
       mailers.NotificationMailer().finished_pipeline(self)
-    elif any(job.status == Job.STATUS.RUNNING for job in self.jobs):
-      self.set_status(Pipeline.STATUS.RUNNING)
-    else:
+    elif self.status != Pipeline.STATUS.RUNNING and any(job.status == Job.STATUS.RUNNING for job in self.jobs):
       self.set_status(Pipeline.STATUS.RUNNING)
 
   def is_end_node(self, job):
     """Determine if a job is an end node."""
     # Logic to determine if a job is an end node
     # This might involve checking if the job has no subsequent jobs
-    return not any(subsequent_job for subsequent_job in self.jobs if subsequent_job.has_precondition_for_success(job) or subsequent_job.has_precondition_for_failure(job))
+    return not any(subsequent_job for subsequent_job in self.jobs 
+                   if subsequent_job.has_precondition_for_success(job) or 
+                   subsequent_job.has_precondition_for_failure(job))
 
   def _is_job_needed(self, job):
     """Determine if a job is still needed based on the pipeline's state."""
