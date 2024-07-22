@@ -325,15 +325,28 @@ class Pipeline(extensions.db.Model):
   # TODO(dulacp): rename this method to `job_finished`
   def leaf_job_finished(self) -> None:
     """Determines if the pipeline should be considered finished or failed."""
-    if self.has_failed():
-      self.stop()
-      self.set_status(Pipeline.STATUS.FAILED)
-      mailers.NotificationMailer().finished_pipeline(self)
-    elif self.has_stopped():
-      self.set_status(Pipeline.STATUS.IDLE)
-    elif self.has_finished():
-      self.set_status(Pipeline.STATUS.SUCCEEDED)
-      mailers.NotificationMailer().finished_pipeline(self)
+    try:
+      if self.has_failed():
+        logging.info(f"Pipeline {self.id} has failed.")
+        self.stop()
+        self.set_status(Pipeline.STATUS.FAILED)
+        mailers.NotificationMailer().finished_pipeline(self)
+      elif self.has_stopped():
+        logging.info(f"Pipeline {self.id} is idle.")
+        self.set_status(Pipeline.STATUS.IDLE)
+      elif self.has_finished():
+        logging.info(f"Pipeline {self.id} has succeeded.")
+        self.set_status(Pipeline.STATUS.SUCCEEDED)
+        mailers.NotificationMailer().finished_pipeline(self)
+      else:
+        # Check if any job failed and started a subsequent job
+        for job in self.jobs:
+          if job.status == Job.STATUS.FAILED:
+            logging.info(f"Job {job.id} in pipeline {self.id} failed. Checking for subsequent jobs.")
+            job.handle_failure_and_start_subsequent()
+    except Exception as e:
+      logging.error(f"Error finalizing pipeline {self.id}: {e}")
+      raise
 
   def import_data(self, data):
     self.run_on_schedule = data.get('run_on_schedule', False)
@@ -743,11 +756,30 @@ class Job(extensions.db.Model):
     self.pipeline.leaf_job_finished()
     return 0
 
+  def handle_failure_and_start_subsequent(self):
+    """Handles job failure and starts a subsequent job if conditions are met."""
+    try:
+      self.set_status(Job.STATUS.FAILED)
+      logging.info(f"Job {self.id} failed. Checking for dependent jobs.")
+      for dependent_job in self.dependent_jobs:
+        for condition in dependent_job.start_conditions:
+          if condition.preceding_job_id == self.id and condition.condition == StartCondition.CONDITION.FAIL:
+            logging.info(f"Starting dependent job {dependent_job.id} due to failure of job {self.id}.")
+            dependent_job.start()
+            return
+      self.pipeline.leaf_job_finished()
+    except Exception as e:
+      logging.error(f"Error handling job failure for job {self.id}: {e}")
+      raise
+
   def task_succeeded(self, task_name: str) -> int:
     return self._task_finished(task_name, Job.STATUS.SUCCEEDED)
 
   def task_failed(self, task_name: str) -> int:
-    return self._task_finished(task_name, Job.STATUS.FAILED)
+    num_running_tasks = self._task_finished(task_name, Job.STATUS.FAILED)
+    if num_running_tasks == 0:
+      self.handle_failure_and_start_subsequent()
+    return num_running_tasks
 
   def stop(self):
     """Returns True if the job is being stopped, False if it's inactive."""
