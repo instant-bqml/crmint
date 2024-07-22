@@ -357,16 +357,16 @@ class Pipeline(extensions.db.Model):
           self.set_status(Pipeline.STATUS.FAILED)
         else:
           self.set_status(Pipeline.STATUS.RUNNING)
+      else:
+        # For pipelines that don't splinter
+        if all(job.status == Job.STATUS.SUCCEEDED for job in self.jobs):
+          self.set_status(Pipeline.STATUS.SUCCEEDED)
+        elif any(job.status == Job.STATUS.FAILED for job in self.jobs):
+          self.set_status(Pipeline.STATUS.FAILED)
+        elif any(job.status == Job.STATUS.RUNNING for job in self.jobs):
+          self.set_status(Pipeline.STATUS.RUNNING)
         else:
-          # For pipelines that don't splinter
-          if all(job.status == Job.STATUS.SUCCEEDED for job in self.jobs):
-            self.set_status(Pipeline.STATUS.SUCCEEDED)
-          elif any(job.status == Job.STATUS.FAILED for job in self.jobs):
-            self.set_status(Pipeline.STATUS.FAILED)
-          elif any(job.status == Job.STATUS.RUNNING for job in self.jobs):
-            self.set_status(Pipeline.STATUS.RUNNING)
-          else:
-            self.set_status(Pipeline.STATUS.IDLE)
+          self.set_status(Pipeline.STATUS.IDLE)
 
     # Transition remaining jobs to IDLE if they are no longer needed
     for job in self.jobs:
