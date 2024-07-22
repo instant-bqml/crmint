@@ -368,6 +368,15 @@ class Pipeline(extensions.db.Model):
         else:
           self.set_status(Pipeline.STATUS.IDLE)
 
+    # Check if any end job has succeeded
+    end_jobs = [job for job in self.jobs if self.is_end_node(job)]
+    if any(job.status == Job.STATUS.SUCCEEDED for job in end_jobs):
+      # Transition remaining jobs to IDLE if they are in WAITING state
+      for job in self.jobs:
+        if job.status == Job.STATUS.WAITING:
+          job.status = Job.STATUS.IDLE
+          job.save()
+
     # Transition remaining jobs to IDLE if they are no longer needed
     for job in self.jobs:
       if job.status == Job.STATUS.WAITING and not self._is_job_needed(job):
