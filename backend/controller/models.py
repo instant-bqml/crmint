@@ -339,11 +339,11 @@ class Pipeline(extensions.db.Model):
         self.set_status(Pipeline.STATUS.SUCCEEDED)
         mailers.NotificationMailer().finished_pipeline(self)
       else:
-          # Check if any job failed and started a subsequent job
-          for job in self.jobs:
-            if job.status == Job.STATUS.FAILED:
-              logging.info(f"Job {job.id} in pipeline {self.id} failed. Checking for subsequent jobs.")
-              job.handle_failure_and_start_subsequent()
+        # Check if any job failed and started a subsequent job
+        for job in self.jobs:
+          if job.status == Job.STATUS.FAILED:
+            logging.info(f"Job {job.id} in pipeline {self.id} failed. Checking for subsequent jobs.")
+            job.handle_failure_and_start_subsequent()
     except Exception as e:
       logging.error(f"Error finalizing pipeline {self.id}: {e}")
       raise
