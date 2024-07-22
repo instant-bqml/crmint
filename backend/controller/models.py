@@ -768,8 +768,30 @@ class Job(extensions.db.Model):
       self._start_dependent_jobs()
       return 0
 
+    for dependent_job in self.dependent_jobs:
+      if dependent_job.start_conditions_met():
+        dependent_job.status = Job.STATUS.IDLE
+        dependent_job.save()
+        dependent_job.start()
+
     self.pipeline.leaf_job_finished()
     return 0
+
+  def start_conditions_met(self):
+    """Checks if all start conditions for the job are met."""
+    for condition in self.start_conditions:
+      preceding_job = Job.objects.get(id=condition.preceding_job_id)
+      if condition.condition == StartCondition.CONDITION.SUCCESS and preceding_job.status != Job.STATUS.SUCCEEDED:
+        return False
+      if condition.condition == StartCondition.CONDITION.FAIL and preceding_job.status != Job.STATUS.FAILED:
+        return False
+    return True
+
+  def has_precondition_for_failure(self, preceding_job):
+    for condition in self.start_conditions:
+      if condition.preceding_job_id == preceding_job.id and condition.condition == StartCondition.CONDITION.FAIL:
+        return True
+    return False
 
   def task_succeeded(self, task_name: str) -> int:
     return self._task_finished(task_name, Job.STATUS.SUCCEEDED)
