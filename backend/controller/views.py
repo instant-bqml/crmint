@@ -160,7 +160,7 @@ class UpgradeApplication(Resource):
   """Endpoint to upgrade the application."""
   def post(self):
     if upgrade_status['status'] == 'in_progress':
-        return {'error': 'Upgrade already in progress'}, 400
+      return {'error': 'Upgrade already in progress'}, 400
 
     # Start the upgrade process in a separate thread
     upgrade_thread = threading.Thread(target=self.perform_upgrade)
