@@ -85,5 +85,16 @@ class BQWorker(worker.Worker):
         else:
           self.log_error(f'Failed after {retries} attempts: {e}')
           raise worker.WorkerException(f'Failed after {retries} attempts: {e}')
+    # Handle job error results with retries
+    while job.error_result is not None and attempt < retries:
+      delay = min(30, delay * 2)  # Exponential backoff
+      self.log_info(f'Error encountered: {job.error_result["message"]}. Retrying in {delay} seconds...')
+      time.sleep(delay)
+      attempt += 1
+      job.reload()  # Reload the job to check its status again
+      if job.done() and job.error_result is None:
+        return  # Exit if the job completes successfully
+
     if job.error_result is not None:
+      self.log_error(f'Failed after {retries} attempts: {job.error_result["message"]}')
       raise worker.WorkerException(job.error_result['message'])
