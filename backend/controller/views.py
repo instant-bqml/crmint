@@ -189,8 +189,8 @@ class UpgradeApplication(Resource):
 
     try:
       # Execute the upgrade command
-      command = "bash <(curl -Ls https://raw.githubusercontent.com/instant-bqml/crmint/master/scripts/install.sh) master --bundle"
-      result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+      command = ["bash", "-c", "bash <(curl -Ls https://raw.githubusercontent.com/instant-bqml/crmint/master/scripts/install.sh) master --bundle"]
+      result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
       with upgrade_status_lock:
         # Update the status to completed
