@@ -36,6 +36,8 @@ export class SettingsComponent implements OnInit {
   };
 
   resetStatusesRunning = false;
+  upgradeStatus: string = 'idle';
+  upgradeMessage: string = '';
 
   gVarsForm: UntypedFormGroup;
   settingsForm: UntypedFormGroup;
@@ -55,6 +57,10 @@ export class SettingsComponent implements OnInit {
                      this.assignModelToSettingsForm();
                      this.assignModelToGVarsForm();
                    });
+    // Periodically check the upgrade status
+    setInterval(() => {
+      this.checkUpgradeStatus();
+    }, 5000); // Check every 5 seconds
   }
 
   // --------------- GENERAL SETTINGS FORM ----------------
@@ -179,5 +185,30 @@ export class SettingsComponent implements OnInit {
 
   resetStatusesIsRunning(): boolean {
     return this.resetStatusesRunning;
+  }
+
+  upgradeApplication() {
+    this.settingsService.upgrade()
+      .then(() => {
+        console.log('Upgrade started');
+        this.upgradeStatus = 'in_progress';
+        this.upgradeMessage = 'Upgrade started';
+      })
+      .catch(error => {
+        console.error('Upgrade failed', error);
+        this.upgradeStatus = 'failed';
+        this.upgradeMessage = 'Upgrade failed';
+      });
+  }
+
+  checkUpgradeStatus() {
+    this.settingsService.getUpgradeStatus()
+      .then(status => {
+        this.upgradeStatus = status.status;
+        this.upgradeMessage = status.message;
+      })
+      .catch(error => {
+        console.error('Failed to get upgrade status', error);
+      });
   }
 }

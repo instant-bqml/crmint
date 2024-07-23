@@ -13,8 +13,11 @@
 # limitations under the License.
 
 """General section."""
+import threading
+import subprocess
 
 from flask import Blueprint
+from flask import jsonify
 from flask_restful import Api
 from flask_restful import fields
 from flask_restful import marshal_with
@@ -52,6 +55,12 @@ setting_fields = {
 
 settings_fields = {
     'settings': fields.List(fields.Nested(setting_fields)),
+}
+
+# Global variable to track the upgrade status
+upgrade_status = {
+    'status': 'idle',  # Possible values: 'idle', 'in_progress', 'completed', 'failed'
+    'message': ''
 }
 
 configuration_fields = {
@@ -147,7 +156,45 @@ class ResetStatuses(Resource):
       return {'error': str(e)}, 500
 
 
+class UpgradeApplication(Resource):
+  """Endpoint to upgrade the application."""
+  def post(self):
+    if upgrade_status['status'] == 'in_progress':
+        return {'error': 'Upgrade already in progress'}, 400
+
+    # Start the upgrade process in a separate thread
+    upgrade_thread = threading.Thread(target=self.perform_upgrade)
+    upgrade_thread.start()
+    return '', 202
+
+    def get(self):
+      return jsonify(upgrade_status)
+
+    def perform_upgrade(self):
+      global upgrade_status
+      upgrade_status['status'] = 'in_progress'
+      upgrade_status['message'] = 'Upgrade started'
+
+      try:
+        # Execute the upgrade command
+        command = "bash <(curl -Ls https://raw.githubusercontent.com/instant-bqml/crmint/master/scripts/install.sh) master --bundle"
+        result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # Update the status to completed
+        upgrade_status['status'] = 'completed'
+        upgrade_status['message'] = 'Upgrade completed successfully'
+      except subprocess.CalledProcessError as e:
+        # Update the status to failed
+        upgrade_status['status'] = 'failed'
+        upgrade_status['message'] = f'Upgrade failed: {e.stderr.decode()}'
+      except Exception as e:
+        # Update the status to failed
+        upgrade_status['status'] = 'failed'
+        upgrade_status['message'] = f'Upgrade failed: {str(e)}'
+
+
 api.add_resource(Configuration, '/configuration')
 api.add_resource(GlobalVariable, '/global_variables')
 api.add_resource(GeneralSettingsRoute, '/general_settings')
 api.add_resource(ResetStatuses, '/reset/statuses')
+api.add_resource(UpgradeApplication, '/upgrade')

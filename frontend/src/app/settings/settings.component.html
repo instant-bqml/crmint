@@ -57,4 +57,12 @@
     <mat-card-title>Reset Pipelines</mat-card-title>
     <button mat-raised-button type="button" color="warn" (click)="resetStatuses()" [disabled]="resetStatusesIsRunning()">Reset</button>
   </mat-card>
+  <mat-card>
+    <mat-card-title>Upgrade Application</mat-card-title>
+    <button mat-raised-button type="button" color="primary" (click)="upgradeApplication()" [disabled]="upgradeStatus === 'in_progress'">Upgrade</button>
+    <div *ngIf="upgradeStatus !== 'idle'">
+      <mat-progress-spinner *ngIf="upgradeStatus === 'in_progress'" strokeWidth="10" mode="indeterminate"></mat-progress-spinner>
+      <div *ngIf="upgradeStatus !== 'in_progress'">{{upgradeMessage}}</div>
+    </div>
+  </mat-card>
 </div>

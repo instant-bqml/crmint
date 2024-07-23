@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 
 import { ApiService } from 'app/api.service';
 import { Config, Setting } from 'app/config';
@@ -25,6 +26,11 @@ export class SettingsService extends ApiService {
   private variablesUrl = `${this.host}/global_variables`;
   private settingsUrl = `${this.host}/general_settings`;
   private resetStatusesUrl = `${this.host}/reset/statuses`;
+  private upgradeUrl = `${this.host}/upgrade`;  // Add the upgrade URL
+
+  constructor(protected http: HttpClient) {
+    super(http);
+  }
 
   getConfigData(): Promise<Config> {
     this.removeContentTypeHeader();
@@ -56,5 +62,19 @@ export class SettingsService extends ApiService {
           callback();
           this.handleError(error);
         });
+  }
+
+  upgrade(): Promise<void> {
+    this.addContentTypeHeader();
+    return this.http.post<void>(this.upgradeUrl, null)
+        .toPromise()
+        .catch(this.handleError);
+  }
+
+  getUpgradeStatus(): Promise<{status: string, message: string}> {
+    this.removeContentTypeHeader();
+    return this.http.get<{status: string, message: string}>(this.upgradeUrl)
+        .toPromise()
+        .catch(this.handleError);
   }
 }
