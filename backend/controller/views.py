@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """General section."""
+import threading
 from threading import Lock
 import subprocess
 
@@ -176,38 +177,38 @@ class UpgradeApplication(Resource):
       upgrade_thread.start()
       return '', 202
 
-    def get(self):
+  def get(self):
+    with upgrade_status_lock:
+      return jsonify(upgrade_status)
+
+  def perform_upgrade(self):
+    global upgrade_status
+    with upgrade_status_lock:
+      upgrade_status['status'] = 'in_progress'
+      upgrade_status['message'] = 'Upgrade started'
+
+    try:
+      # Execute the upgrade command
+      command = "bash <(curl -Ls https://raw.githubusercontent.com/instant-bqml/crmint/master/scripts/install.sh) master --bundle"
+      result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
       with upgrade_status_lock:
-        return jsonify(upgrade_status)
-
-    def perform_upgrade(self):
-      global upgrade_status
+        # Update the status to completed
+        upgrade_status['status'] = 'completed'
+        upgrade_status['message'] = 'Upgrade completed successfully'
+        logger.info('Upgrade completed successfully')
+    except subprocess.CalledProcessError as e:
       with upgrade_status_lock:
-        upgrade_status['status'] = 'in_progress'
-        upgrade_status['message'] = 'Upgrade started'
-
-      try:
-        # Execute the upgrade command
-        command = "bash <(curl -Ls https://raw.githubusercontent.com/instant-bqml/crmint/master/scripts/install.sh) master --bundle"
-        result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        with upgrade_status_lock:
-          # Update the status to completed
-          upgrade_status['status'] = 'completed'
-          upgrade_status['message'] = 'Upgrade completed successfully'
-          logger.info('Upgrade completed successfully')
-      except subprocess.CalledProcessError as e:
-        with upgrade_status_lock:
-          # Update the status to failed
-          upgrade_status['status'] = 'failed'
-          upgrade_status['message'] = f'Upgrade failed: {e.stderr.decode()}'
-          logger.error(f'Upgrade failed: {e.stderr.decode()}')
-      except Exception as e:
-        with upgrade_status_lock:
-          # Update the status to failed
-          upgrade_status['status'] = 'failed'
-          upgrade_status['message'] = f'Upgrade failed: {str(e)}'
-          logger.error(f'Upgrade failed: {str(e)}')
+        # Update the status to failed
+        upgrade_status['status'] = 'failed'
+        upgrade_status['message'] = f'Upgrade failed: {e.stderr.decode()}'
+        logger.error(f'Upgrade failed: {e.stderr.decode()}')
+    except Exception as e:
+      with upgrade_status_lock:
+        # Update the status to failed
+        upgrade_status['status'] = 'failed'
+        upgrade_status['message'] = f'Upgrade failed: {str(e)}'
+        logger.error(f'Upgrade failed: {str(e)}')
 
 
 api.add_resource(Configuration, '/configuration')
