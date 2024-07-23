@@ -197,7 +197,7 @@ export class SettingsComponent implements OnInit {
       .catch(error => {
         console.error('Upgrade failed', error);
         this.upgradeStatus = 'failed';
-        this.upgradeMessage = 'Upgrade failed';
+        this.upgradeMessage = 'Upgrade failed: ' + (error.message || 'Unknown error');
       });
   }
 
@@ -209,6 +209,7 @@ export class SettingsComponent implements OnInit {
       })
       .catch(error => {
         console.error('Failed to get upgrade status', error);
+        this.upgradeMessage = 'Failed to get upgrade status: ' + (error.message || 'Unknown error');
       });
   }
 }
