@@ -193,6 +193,7 @@ export class SettingsComponent implements OnInit {
         console.log('Upgrade started');
         this.upgradeStatus = 'in_progress';
         this.upgradeMessage = 'Upgrade started';
+        this.checkUpgradeStatus(); // Start checking the upgrade status
       })
       .catch(error => {
         console.error('Upgrade failed', error);
@@ -202,14 +203,20 @@ export class SettingsComponent implements OnInit {
   }
 
   checkUpgradeStatus() {
-    this.settingsService.getUpgradeStatus()
-      .then(status => {
-        this.upgradeStatus = status.status;
-        this.upgradeMessage = status.message;
-      })
-      .catch(error => {
-        console.error('Failed to get upgrade status', error);
-        this.upgradeMessage = 'Failed to get upgrade status: ' + (error.message || 'Unknown error');
-      });
+    if (this.upgradeStatus === 'in_progress') {
+      this.settingsService.getUpgradeStatus()
+        .then(status => {
+          this.upgradeStatus = status.status;
+          this.upgradeMessage = status.message;
+          // If the upgrade is still in progress, continue checking
+          if (this.upgradeStatus === 'in_progress') {
+            setTimeout(() => this.checkUpgradeStatus(), 5000); // Check again after 5 seconds
+          }
+        })
+        .catch(error => {
+          console.error('Failed to get upgrade status', error);
+          this.upgradeMessage = 'Failed to get upgrade status: ' + (error.message || 'Unknown error');
+        });
+    }
   }
 }
