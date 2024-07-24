@@ -607,15 +607,18 @@ class Job(extensions.db.Model):
   def start(self) -> Union[TaskEnqueued, None]:
     if self.status not in Job.STATUS.WAITING:
       return None
+    all_conditions_fulfilled = True
     for start_condition in self.start_conditions:
       preceding_job_status = start_condition.preceding_job.status
       if preceding_job_status not in Job.STATUS.INACTIVE_STATUSES:
-        return None
+        all_conditions_fulfilled = False
+        break
       if not self._start_condition_is_fulfilled(start_condition):
-        # If the condition is not fulfilled, we should not mark the pipeline as failed immediately.
-        # Instead, we should continue checking other conditions.
-        continue
-    return self.start_as_single()
+        all_conditions_fulfilled = False
+        break
+    if all_conditions_fulfilled:
+      return self.start_as_single()
+    return None
 
   def start_as_single(self) -> Union[TaskEnqueued, None]:
     if self.status != Job.STATUS.WAITING:
