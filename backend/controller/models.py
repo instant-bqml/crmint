@@ -589,12 +589,12 @@ class Job(extensions.db.Model):
   def _start_condition_is_fulfilled(self, start_condition) -> bool:
     preceding_job_status = start_condition.preceding_job.status
     if start_condition.condition == StartCondition.CONDITION.SUCCESS:
-      if preceding_job_status != Job.STATUS.SUCCEEDED:
-        return False
+      return preceding_job_status == Job.STATUS.SUCCEEDED
     elif start_condition.condition == StartCondition.CONDITION.FAIL:
-      if preceding_job_status == Job.STATUS.SUCCEEDED:
-        return False
-    return True
+      return preceding_job_status == Job.STATUS.FAILED
+    elif start_condition.condition == StartCondition.CONDITION.WHATEVER:
+      return preceding_job_status in [Job.STATUS.SUCCEEDED, Job.STATUS.FAILED]
+    return False
 
   def _start_dependent_jobs(self) -> list[TaskEnqueued]:
     enqueued_tasks = []
