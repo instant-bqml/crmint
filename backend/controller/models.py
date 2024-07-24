@@ -305,21 +305,10 @@ class Pipeline(extensions.db.Model):
     return False
 
   def has_failed(self) -> bool:
-    """Returns True if a pipeline is in a failed state.
-
-    A pipeline is considered failed if one of these conditions is met:
-      1. a leaf job failed (isolated or not)
-      2. a starting condition is not fulfilled
-    """
+    """Returns True if a pipeline is in a failed state."""
     for job in self.jobs:
-      # 1. Checks if a leaf job has failed.
-      if not job.dependent_jobs:
-        if job.status == Job.STATUS.FAILED:
-          return True
-      # 2. Checks if a starting condition has been invalidated.
-      for start_condition in job.start_conditions:
-        if job.start_condition_invalidated(start_condition):
-          return True
+      if not job.dependent_jobs and job.status == Job.STATUS.FAILED:
+        return True
     return False
 
   # TODO(dulacp): rename this method to `job_finished`
@@ -334,6 +323,11 @@ class Pipeline(extensions.db.Model):
     elif self.has_finished():
       self.set_status(Pipeline.STATUS.SUCCEEDED)
       mailers.NotificationMailer().finished_pipeline(self)
+    else:
+      # Check for jobs that need to be started based on the status of finished jobs
+      for job in self.jobs:
+        if job.status in [Job.STATUS.SUCCEEDED, Job.STATUS.FAILED]:
+          job._start_dependent_jobs()
 
   def import_data(self, data):
     self.run_on_schedule = data.get('run_on_schedule', False)
@@ -589,32 +583,27 @@ class Job(extensions.db.Model):
   def _start_condition_is_fulfilled(self, start_condition) -> bool:
     preceding_job_status = start_condition.preceding_job.status
     if start_condition.condition == StartCondition.CONDITION.SUCCESS:
-      if preceding_job_status != Job.STATUS.SUCCEEDED:
-        return False
+        return preceding_job_status == Job.STATUS.SUCCEEDED
     elif start_condition.condition == StartCondition.CONDITION.FAIL:
-      if preceding_job_status == Job.STATUS.SUCCEEDED:
-        return False
-    return True
+        return preceding_job_status == Job.STATUS.FAILED
+    return True  # StartCondition.CONDITION.WHATEVER
 
   def _start_dependent_jobs(self) -> list[TaskEnqueued]:
     enqueued_tasks = []
     for job in self.dependent_jobs:
-      started_task = job.start()
-      if started_task:
-        enqueued_tasks.append(started_task)
+      if job.get_ready():
+        started_task = job.start()
+        if started_task:
+          enqueued_tasks.append(started_task)
     return enqueued_tasks
 
   def start(self) -> Union[TaskEnqueued, None]:
-    if self.status not in Job.STATUS.WAITING:
-      # NOTE: Usually means that a single job was started from the UI,
-      #       so other jobs are still in an inactive status.
+    if self.status != Job.STATUS.WAITING:
       return None
     for start_condition in self.start_conditions:
       if start_condition.preceding_job.status not in Job.STATUS.INACTIVE_STATUSES:
-        # Starting condition still running.
         return None
       if not self._start_condition_is_fulfilled(start_condition):
-        # Cannot start this job, pipeline has failed.
         self.pipeline.leaf_job_finished()
         return None
     return self.start_as_single()
