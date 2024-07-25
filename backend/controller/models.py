@@ -293,13 +293,6 @@ class Pipeline(extensions.db.Model):
     A pipeline is considered finished when all jobs are in an inactive status.
     """
     for job in self.jobs:
-      # Check if the job is a commenter worker class and finished successfully
-      if (
-        job.is_commenter_worker_class() and 
-        job.finished_successfully_button_checked() and 
-        job.status == Job.STATUS.SUCCEEDED
-      ):
-        continue
       if job.status not in Job.STATUS.INACTIVE_STATUSES:
         return False
     return True
@@ -317,22 +310,12 @@ class Pipeline(extensions.db.Model):
     A pipeline is considered failed if one of these conditions is met:
       1. a leaf job failed (isolated or not)
       2. a starting condition is not fulfilled
-      3. except if a commenter worker class job has the finished successfully button checked
     """
     for job in self.jobs:
-      # Check if the job is a commenter worker class and finished successfully
-      if (
-        job.is_commenter_worker_class() and 
-        job.finished_successfully_button_checked() and 
-        job.status == Job.STATUS.SUCCEEDED
-      ):
-        return False
-
       # 1. Checks if a leaf job has failed.
       if not job.dependent_jobs:
         if job.status == Job.STATUS.FAILED:
           return True
-
       # 2. Checks if a starting condition has been invalidated.
       for start_condition in job.start_conditions:
         if job.start_condition_invalidated(start_condition):
@@ -349,7 +332,6 @@ class Pipeline(extensions.db.Model):
     elif self.has_stopped():
       self.set_status(Pipeline.STATUS.IDLE)
     elif self.has_finished():
-      self.stop()
       self.set_status(Pipeline.STATUS.SUCCEEDED)
       mailers.NotificationMailer().finished_pipeline(self)
 
@@ -637,14 +619,6 @@ class Job(extensions.db.Model):
     if all_conditions_fulfilled:
       return self.start_as_single()
     return None
-
-  def is_commenter_worker_class(self) -> bool:
-    """Check if the job is a commenter worker class."""
-    return self.job_type == 'Commenter'
-
-  def finished_successfully_button_checked(self) -> bool:
-    """Check if the finished successfully button is checked."""
-    return self.params.get('success', False)
 
   def start_as_single(self) -> Union[TaskEnqueued, None]:
     if self.status != Job.STATUS.WAITING:
