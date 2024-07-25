@@ -293,6 +293,13 @@ class Pipeline(extensions.db.Model):
     A pipeline is considered finished when all jobs are in an inactive status.
     """
     for job in self.jobs:
+      # Check if the job is a commenter worker class and finished successfully
+      if (
+        job.is_commenter_worker_class() and 
+        job.finished_successfully_button_checked() and 
+        job.status == Job.STATUS.SUCCEEDED
+      ):
+        continue
       if job.status not in Job.STATUS.INACTIVE_STATUSES:
         return False
     return True
