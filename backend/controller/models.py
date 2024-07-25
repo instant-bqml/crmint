@@ -316,6 +316,11 @@ class Pipeline(extensions.db.Model):
       if not job.dependent_jobs:
         if job.status == Job.STATUS.FAILED:
           return True
+      else:
+        # 3. Checks if a job with dependent jobs has failed.
+        for dependent_job in job.dependent_jobs:
+          if dependent_job.status == Job.STATUS.FAILED:
+            return True
       # 2. Checks if a starting condition has been invalidated.
       for start_condition in job.start_conditions:
         if job.start_condition_invalidated(start_condition):
