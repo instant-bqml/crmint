@@ -314,7 +314,11 @@ class Pipeline(extensions.db.Model):
     """
     for job in self.jobs:
       # Check if the job is a commenter worker class and finished successfully
-      if job.is_commenter_worker_class() and job.finished_successfully_button_checked():
+      if (
+        job.is_commenter_worker_class() and 
+        job.finished_successfully_button_checked() and 
+        job.status == Job.STATUS.SUCCEEDED
+      ):
         return False
 
       # 1. Checks if a leaf job has failed.
