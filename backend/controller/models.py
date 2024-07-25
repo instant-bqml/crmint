@@ -331,6 +331,9 @@ class Pipeline(extensions.db.Model):
       for job in self.jobs
     )
     if commenter_job_succeeded:
+      for job in self.jobs:
+        if job.status in [Job.STATUS.WAITING, Job.STATUS.RUNNING]:
+          job.set_status(Job.STATUS.IDLE)
       self.stop()
       self.set_status(Pipeline.STATUS.SUCCEEDED)
       mailers.NotificationMailer().finished_pipeline(self)
