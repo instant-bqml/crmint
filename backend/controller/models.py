@@ -325,6 +325,16 @@ class Pipeline(extensions.db.Model):
   # TODO(dulacp): rename this method to `job_finished`
   def leaf_job_finished(self) -> None:
     """Determines if the pipeline should be considered finished or failed."""
+    # Check if the Commenter job has succeeded
+    commenter_job_succeeded = any(
+      job.worker_class == 'Commenter' and job.status == Job.STATUS.SUCCEEDED
+      for job in self.jobs
+    )
+
+    if commenter_job_succeeded:
+      self.stop()
+      self.set_status(Pipeline.STATUS.SUCCEEDED)
+      mailers.NotificationMailer().finished_pipeline(self)
     if self.has_failed():
       self.stop()
       self.set_status(Pipeline.STATUS.FAILED)
