@@ -325,6 +325,7 @@ class Pipeline(extensions.db.Model):
       # 2. Checks if a starting condition has been invalidated.
       for start_condition in job.start_conditions:
         if job.start_condition_invalidated(start_condition):
+          return True
     return False
 
   # TODO(dulacp): rename this method to `job_finished`
