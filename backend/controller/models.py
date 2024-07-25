@@ -339,6 +339,14 @@ class Pipeline(extensions.db.Model):
       job_id=None
     )
 
+    crmint_logging.log_message(
+      f"CCommenter Job Succeeded: {commenter_job_succeeded}.",
+      log_level='INFO',
+      worker_class='Pipeline',
+      pipeline_id=self.id,
+      job_id=None
+    )
+
     for job in self.jobs:
       crmint_logging.log_message(
         f"Job.worker_class == 'Commenter': {job.worker_class == 'Commenter'}.",
@@ -382,7 +390,7 @@ class Pipeline(extensions.db.Model):
       mailers.NotificationMailer().finished_pipeline(self)
 
     if self.has_failed():
-        crmint_logging.log_message(
+      crmint_logging.log_message(
         f"Pipeline {self.id} has failed.",
         log_level='ERROR',
         worker_class='Pipeline',
