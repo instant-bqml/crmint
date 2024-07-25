@@ -330,6 +330,7 @@ class Pipeline(extensions.db.Model):
       job.worker_class == 'Commenter' and job.status == Job.STATUS.SUCCEEDED
       for job in self.jobs
     )
+
     crmint_logging.log_message(
       f"Checking if Commenter job has succeeded for pipeline {self.id}.",
       log_level='INFO',
@@ -337,34 +338,36 @@ class Pipeline(extensions.db.Model):
       pipeline_id=self.id,
       job_id=None
     )
-    crmint_logging.log_message(
-      f"Job.worker_class == 'Commenter': {job.worker_class == 'Commenter'}.",
-      log_level='INFO',
-      worker_class='Pipeline',
-      pipeline_id=self.id,
-      job_id=None
-    )
-    crmint_logging.log_message(
-      f"Job.worker_class : {job.worker_class}.",
-      log_level='INFO',
-      worker_class='Pipeline',
-      pipeline_id=self.id,
-      job_id=None
-    )
-    crmint_logging.log_message(
-      f"job.status  == Job.STATUS.SUCCEEDED: {job.status == Job.STATUS.SUCCEEDED}.",
-      log_level='INFO',
-      worker_class='Pipeline',
-      pipeline_id=self.id,
-      job_id=None
-    )
-    rmint_logging.log_message(
-      f"job.status: {job.status}.",
-      log_level='INFO',
-      worker_class='Pipeline',
-      pipeline_id=self.id,
-      job_id=None
-    )
+
+    for job in self.jobs:
+      crmint_logging.log_message(
+        f"Job.worker_class == 'Commenter': {job.worker_class == 'Commenter'}.",
+        log_level='INFO',
+        worker_class='Pipeline',
+        pipeline_id=self.id,
+        job_id=job.id
+      )
+      crmint_logging.log_message(
+        f"Job.worker_class : {job.worker_class}.",
+        log_level='INFO',
+        worker_class='Pipeline',
+        pipeline_id=self.id,
+        job_id=job.id
+      )
+      crmint_logging.log_message(
+        f"job.status  == Job.STATUS.SUCCEEDED: {job.status == Job.STATUS.SUCCEEDED}.",
+        log_level='INFO',
+        worker_class='Pipeline',
+        pipeline_id=self.id,
+        job_id=job.id
+      )
+      crmint_logging.log_message(
+        f"job.status: {job.status}.",
+        log_level='INFO',
+        worker_class='Pipeline',
+        pipeline_id=self.id,
+        job_id=job.id
+      )
 
     if commenter_job_succeeded:
       crmint_logging.log_message(
@@ -377,13 +380,35 @@ class Pipeline(extensions.db.Model):
       self.stop()
       self.set_status(Pipeline.STATUS.SUCCEEDED)
       mailers.NotificationMailer().finished_pipeline(self)
+
     if self.has_failed():
+        crmint_logging.log_message(
+        f"Pipeline {self.id} has failed.",
+        log_level='ERROR',
+        worker_class='Pipeline',
+        pipeline_id=self.id,
+        job_id=None
+      )
       self.stop()
       self.set_status(Pipeline.STATUS.FAILED)
       mailers.NotificationMailer().finished_pipeline(self)
     elif self.has_stopped():
+      crmint_logging.log_message(
+        f"Pipeline {self.id} has stopped.",
+        log_level='INFO',
+        worker_class='Pipeline',
+        pipeline_id=self.id,
+        job_id=None
+      )
       self.set_status(Pipeline.STATUS.IDLE)
     elif self.has_finished():
+      crmint_logging.log_message(
+        f"Pipeline {self.id} has finished.",
+        log_level='INFO',
+        worker_class='Pipeline',
+        pipeline_id=self.id,
+        job_id=None
+      )
       self.set_status(Pipeline.STATUS.SUCCEEDED)
       mailers.NotificationMailer().finished_pipeline(self)
 
