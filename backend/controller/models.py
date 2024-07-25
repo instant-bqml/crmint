@@ -604,7 +604,11 @@ class Job(extensions.db.Model):
 
   def start_condition_invalidated(self,
                                   start_condition: StartCondition) -> bool:
-    predecing_job_status = start_condition.preceding_job.status
+    preceding_job = start_condition.preceding_job
+    predecing_job_status = preceding_job.status
+    # Check if the preceding job is of type CommenterWorker
+    if preceding_job.worker_class == 'Commenter':
+      return False
     if predecing_job_status not in [Job.STATUS.FAILED, Job.STATUS.SUCCEEDED]:
       # Still running or idle
       return False
