@@ -640,7 +640,8 @@ class Job(extensions.db.Model):
     namespace = self._get_task_namespace()
     task = TaskEnqueued.create(task_namespace=namespace, task_name=task_name)
     crmint_logging.log_message(
-      f'Added task with name: {task_name} in namespace: {namespace}',
+      f'Added task with name: {task_name} in namespace: {namespace} '
+      f'to enqueued_tasks table.',
       log_level='DEBUG',
       worker_class=self.worker_class,
       pipeline_id=self.pipeline_id,
@@ -653,7 +654,8 @@ class Job(extensions.db.Model):
     tasks = TaskEnqueued.where(task_namespace=task_namespace,
                                task_name=task_name).all()
     crmint_logging.log_message(
-      f'Retrieved {len(tasks)} tasks with name: {task_name} in namespace: {task_namespace}',
+      f'Retrieved {len(tasks)} tasks with name: {task_name} '
+      f'in namespace: {task_namespace} from enqueued_tasks table.',
       log_level='DEBUG',
       worker_class=self.worker_class,
       pipeline_id=self.pipeline_id,
@@ -671,7 +673,7 @@ class Job(extensions.db.Model):
               attempt: int = 0) -> Union[TaskEnqueued, None]:
     if self.status != Job.STATUS.RUNNING:
       crmint_logging.log_message(
-        f'Cannot enqueue task: job status is {self.status}, not RUNNING',
+        f'Cannot enqueue task: job status is {self.status}, not RUNNING.',
         log_level='WARNING',
         worker_class=self.worker_class,
         pipeline_id=self.pipeline_id,
@@ -690,7 +692,7 @@ class Job(extensions.db.Model):
           general_settings)
       task_inst.enqueue(delay)
       crmint_logging.log_message(
-          f'Enqueued task for (worker_class, name): ({worker_class}, {name})',
+          f'Enqueued task for (worker_class, name): ({worker_class}, {name}).',
           log_level='INFO',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
@@ -699,7 +701,8 @@ class Job(extensions.db.Model):
     else:
       if attempt < self.MAX_RETRIES:
         crmint_logging.log_message(
-          f'Failed to add task: {name}, retrying (attempt {attempt + 1}/{self.MAX_RETRIES})',
+          f'Failed to add task: {name}, retrying '
+          f'(attempt {attempt + 1}/{self.MAX_RETRIES}).',
           log_level='WARNING',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
@@ -708,7 +711,7 @@ class Job(extensions.db.Model):
         return self.enqueue(worker_class, worker_params, delay, attempt + 1)
       else:
         crmint_logging.log_message(
-          f'Failed to add task with name: {name} after {self.MAX_RETRIES} attempts',
+          f'Failed to add task with name: {name} after {self.MAX_RETRIES} attempts.',
           log_level='ERROR',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
@@ -731,7 +734,7 @@ class Job(extensions.db.Model):
       Number of tasks still running for this given job.
     """
     crmint_logging.log_message(
-        f'Finished task for name: {task_name}',
+        f'Finished task for name: {task_name}.',
         log_level='DEBUG',
         worker_class=self.worker_class,
         pipeline_id=self.pipeline_id,
@@ -739,14 +742,15 @@ class Job(extensions.db.Model):
     # Ignores tasks that are not registered which should be considered an error.
     found_tasks = self._get_tasks_with_name(task_name)
     crmint_logging.log_message(
-      f'Task found: found {len(found_tasks)} tasks for name {task_name}',
+      f'Found {len(found_tasks)} tasks for name {task_name} '
+      f'in enqueued_tasks table.',
       log_level='DEBUG',
       worker_class=self.worker_class,
       pipeline_id=self.pipeline_id,
       job_id=self.id)
     if not found_tasks:
       crmint_logging.log_message(
-        f'Task not found for task name: {task_name}',
+        f'Task not found in enqueued_tasks table for task name: {task_name}.',
         log_level='WARNING',
         worker_class=self.worker_class,
         pipeline_id=self.pipeline_id,
@@ -760,12 +764,12 @@ class Job(extensions.db.Model):
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
           job_id=self.id)
-        # Clear the task from the namespace from the enqueued_tasks table
+        # Clear the tasks in the namespace from the enqueued_tasks table.
         task_namespace = self._get_task_namespace()
         TaskEnqueued.where(
           task_namespace=task_namespace).delete(synchronize_session=False)
         crmint_logging.log_message(
-          f'Tasks in task_namespace {task_namespace} cleared from enqueued_tasks table.',
+          f'Tasks in namespace {task_namespace} cleared from enqueued_tasks table.',
           log_level='INFO',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
