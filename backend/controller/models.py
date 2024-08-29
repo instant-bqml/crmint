@@ -386,6 +386,15 @@ class TaskEnqueued(extensions.db.Model):
   task_name = Column(String(100), index=True, unique=True)
 
   @classmethod
+  def delete_tasks_like_namespace(cls, pipeline_id: int):
+    """Deletes tasks from the enqueued_tasks table that match the pattern."""
+    pattern = f'pipeline={pipeline_id}_%'
+    num_deleted = cls.query.filter(cls.task_namespace.like(pattern)).delete(
+        synchronize_session=False
+    )
+    return num_deleted
+
+  @classmethod
   def count_in_namespace(cls, task_namespace: str) -> int:
     """Returns the number of tasks still running in the given namespace."""
     count_query = cls.where(task_namespace=task_namespace)
@@ -764,12 +773,13 @@ class Job(extensions.db.Model):
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
           job_id=self.id)
-        # Clear the tasks in the namespace from the enqueued_tasks table.
-        task_namespace = self._get_task_namespace()
-        TaskEnqueued.where(
-          task_namespace=task_namespace).delete(synchronize_session=False)
+        # Clear the tasks in the namespace where the pipeline_id matches
+        # in the enqueued_tasks table.
+        num_deleted = TaskEnqueued.delete_tasks_like_namespace(
+          self.pipeline_id)
         crmint_logging.log_message(
-          f'Tasks in namespace {task_namespace} cleared from enqueued_tasks table.',
+          f'Cleared {num_deleted} tasks for pipeline_id {self.pipeline_id} '
+          f'from enqueued_tasks table.',
           log_level='INFO',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
