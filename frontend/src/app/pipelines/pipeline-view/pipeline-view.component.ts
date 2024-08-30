@@ -211,7 +211,7 @@ export class PipelineViewComponent implements OnInit, OnDestroy {
 
   updateGraph() {
     if (this.indexTabActivated === 0 && this.graph) {
-      this.graph.redraw();
+      this.graph.redraw(this.jobs);
     }
   }
 
