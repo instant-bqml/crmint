@@ -115,15 +115,32 @@ export class PipelineViewComponent implements OnInit, OnDestroy {
   }
 
   startAutorefresh() {
-    const refreshInterval = 10000; // Refresh every 10 seconds
+    const minRefreshInterval = 10000; // Minimum refresh interval: 10 seconds
+    const maxRefreshInterval = 120000; // Maximum refresh interval: 2 minutes
+    let currentRefreshInterval = minRefreshInterval;
+  
     const refresh = () => {
       this.pipelinesService.getPipeline(this.pipeline.id)
         .then(pipeline => {
-          this.pipeline = plainToClass(Pipeline, pipeline as Pipeline);
-          this.loadJobs(this.pipeline.id);
+          const newPipeline = plainToClass(Pipeline, pipeline as Pipeline);
+          if (JSON.stringify(this.pipeline) !== JSON.stringify(newPipeline)) {
+            // Pipeline has changed, reset to minimum interval
+            this.pipeline = newPipeline;
+            if (this.pipeline.is_active()) {
+              this.loadJobs(this.pipeline.id);
+            }
+            currentRefreshInterval = minRefreshInterval;
+          } else {
+            // No changes, increase interval
+            currentRefreshInterval = Math.min(currentRefreshInterval * 1.5, maxRefreshInterval);
+          }
         })
         .catch(error => {
           console.error('Error fetching pipeline status:', error);
+        })
+        .finally(() => {
+          // Schedule next refresh
+          this.refreshIntervalId = setTimeout(refresh, currentRefreshInterval);
         });
     };
 
