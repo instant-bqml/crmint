@@ -47,8 +47,24 @@ export class PipelineGraphComponent implements OnInit {
   ngOnInit() {
   }
 
-  redraw() {
+  redraw(jobs: Job[]) {
+    this.jobs = jobs;
     this.pgraph.calculate(this.jobs);
+    this.updateJobStatuses();
+  }
+
+  updateJobStatuses() {
+    this.jobs.forEach(job => {
+      const jobElement = this.element.nativeElement.querySelector(`[data-job-id="${job.id}"]`);
+      if (jobElement) {
+        const statusIcon = jobElement.querySelector('.job-status-icon mat-icon');
+        if (statusIcon) {
+          const { icon, color } = this.getJobIconForStatus(job.status);
+          statusIcon.textContent = icon;
+          statusIcon.style.color = color;
+        }
+      }
+    });
   }
 
   getGraphHeight() {
