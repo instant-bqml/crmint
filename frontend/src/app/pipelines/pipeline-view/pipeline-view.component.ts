@@ -116,46 +116,62 @@ export class PipelineViewComponent implements OnInit, OnDestroy {
 
   startAutorefresh() {
     const minRefreshInterval = 10000; // Minimum refresh interval: 10 seconds
-    const maxRefreshInterval = 120000; // Maximum refresh interval: 2 minutes
+    const maxRefreshInterval = 60000; // Maximum refresh interval: 1 minute
     let currentRefreshInterval = minRefreshInterval;
-  
+
     const refresh = () => {
-      this.pipelinesService.getPipeline(this.pipeline.id)
-        .then(pipeline => {
-          const newPipeline = plainToClass(Pipeline, pipeline as Pipeline);
-          if (JSON.stringify(this.pipeline) !== JSON.stringify(newPipeline)) {
-            // Pipeline has changed, reset to minimum interval
-            this.pipeline = newPipeline;
-            if (this.pipeline.is_active()) {
-              this.loadJobs(this.pipeline.id);
-            }
-            currentRefreshInterval = minRefreshInterval;
-          } else {
-            // No changes, increase interval
-            currentRefreshInterval = Math.min(currentRefreshInterval * 1.5, maxRefreshInterval);
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching pipeline status:', error);
-        })
-        .finally(() => {
-          // Schedule next refresh
-          this.refreshIntervalId = setTimeout(refresh, currentRefreshInterval);
-        });
+      Promise.all([
+        this.pipelinesService.getPipeline(this.pipeline.id),
+        this.jobsService.getJobsByPipeline(this.pipeline.id)
+      ])
+      .then(([pipelineData, jobsData]) => {
+        const newPipeline = plainToClass(Pipeline, pipelineData as Pipeline);
+        const newJobs = plainToClass(Job, jobsData as Job[]);
+
+        let hasChanges = false;
+
+        // Check for changes in pipeline
+        if (JSON.stringify(this.pipeline) !== JSON.stringify(newPipeline)) {
+          this.pipeline = newPipeline;
+          hasChanges = true;
+        }
+
+        // Check for changes in jobs
+        if (JSON.stringify(this.jobs) !== JSON.stringify(newJobs)) {
+          this.jobs = newJobs;
+          hasChanges = true;
+        }
+
+        if (hasChanges) {
+          // Pipeline or jobs have changed, reset to minimum interval
+          this.updateGraph();
+          currentRefreshInterval = minRefreshInterval;
+        } else {
+          // No changes, increase interval
+          currentRefreshInterval = Math.min(currentRefreshInterval * 1.5, maxRefreshInterval);
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching pipeline or job status:', error);
+      })
+      .finally(() => {
+        // Schedule next refresh
+        this.refreshIntervalId = setTimeout(refresh, currentRefreshInterval);
+      });
     };
 
     // Clear any existing timeout
     if (this.refreshIntervalId) {
       clearTimeout(this.refreshIntervalId);
     }
-  
+
     // Initial call to refresh
     refresh();
   }
 
   ngOnDestroy() {
     if (this.refreshIntervalId) {
-      clearInterval(this.refreshIntervalId);
+      clearTimeout(this.refreshIntervalId);
     }
   }
 
