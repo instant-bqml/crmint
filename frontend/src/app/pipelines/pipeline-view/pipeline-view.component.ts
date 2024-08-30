@@ -144,18 +144,13 @@ export class PipelineViewComponent implements OnInit, OnDestroy {
         });
     };
 
-    // Clear any existing interval to prevent multiple intervals
+    // Clear any existing timeout
     if (this.refreshIntervalId) {
-      clearInterval(this.refreshIntervalId);
+      clearTimeout(this.refreshIntervalId);
     }
-
+  
     // Initial call to refresh
     refresh();
-
-    // Set interval to refresh periodically
-    this.refreshIntervalId = setInterval(() => {
-      refresh();
-    }, refreshInterval);
   }
 
   ngOnDestroy() {
