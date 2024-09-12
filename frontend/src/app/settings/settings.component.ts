@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { UntypedFormGroup, UntypedFormArray, UntypedFormBuilder, Validators } from '@angular/forms';
 
 import { plainToClass } from 'class-transformer';
@@ -27,7 +27,7 @@ import { Param } from 'app/models/param';
   styleUrls: ['./settings.component.sass'],
   providers: [SettingsService]
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, OnDestroy {
   config: Config = {
     sa_email: 'Unknown',
     settings: [],
@@ -35,11 +35,17 @@ export class SettingsComponent implements OnInit {
     google_ads_auth_url: '',
   };
 
-  resetStatusesRunning = false;
+  private refreshInterval: any;
+
+  resetStatusesAndClearTasksRunning = false;
 
   gVarsForm: UntypedFormGroup;
   settingsForm: UntypedFormGroup;
   googleAdsAuthURL: string;
+  oldestTaskTime: Date | null = null;
+  runningTasksCount: number = 0;
+  timeZone: string | null = null;
+  timeSinceOldestTask: string | null = null;
 
   constructor(
     private settingsService: SettingsService,
@@ -55,6 +61,14 @@ export class SettingsComponent implements OnInit {
                      this.assignModelToSettingsForm();
                      this.assignModelToGVarsForm();
                    });
+    this.fetchTasksInfo();
+    this.refreshInterval = setInterval(() => this.fetchTasksInfo(), 30000);
+  }
+
+  ngOnDestroy() {
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+    }
   }
 
   // --------------- GENERAL SETTINGS FORM ----------------
@@ -166,18 +180,62 @@ export class SettingsComponent implements OnInit {
 
   // --------------- END GLOBAL VARIABLES FORM ----------------
 
-  resetStatuses() {
-    this.resetStatusesRunning = true;
-    this.settingsService.resetStatuses(() => {
-      this.resetStatusesRunning = false;
+  resetStatusesAndClearTasks() {
+    this.resetStatusesAndClearTasksRunning = true;
+    this.settingsService.resetStatusesAndClearTasks(() => {
+      this.resetStatusesAndClearTasksRunning = false;
     })
     .catch(err => {
-      this.resetStatusesRunning = false;
-      console.error('Error resetting statuses:', err);
+      this.resetStatusesAndClearTasksRunning = false;
+      console.error('Error resetting statuses and clearing tasks:', err);
     });
   }
 
-  resetStatusesIsRunning(): boolean {
-    return this.resetStatusesRunning;
+  resetStatusesAndClearTasksIsRunning(): boolean {
+    return this.resetStatusesAndClearTasksRunning;
+  }
+
+  fetchTasksInfo() {
+    this.settingsService.getTasksInfo()
+      .then(info => {
+        if (info.oldest_task_time) {
+          this.oldestTaskTime = new Date(info.oldest_task_time);
+          const fullTimeZone = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+          this.timeZone = this.getShortTimeZone(fullTimeZone);
+          this.timeSinceOldestTask = this.calculateTimeSince(this.oldestTaskTime);
+        } else {
+          this.oldestTaskTime = null;
+          this.timeZone = null;
+          this.timeSinceOldestTask = null;
+        }
+        this.runningTasksCount = info.running_tasks_count;
+      })
+      .catch(err => console.error('Error fetching tasks info:', err));
+  }
+
+  // ------------------- Utility Methods ------------------- //
+  
+  calculateTimeSince(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) {
+      return `${diffDays} day${diffDays > 1 ? 's' : ''}`;
+    } else if (diffHours > 0) {
+      return `${diffHours} hour${diffHours > 1 ? 's' : ''}`;
+    } else if (diffMins > 0) {
+      return `${diffMins} minute${diffMins > 1 ? 's' : ''}`;
+    } else {
+      return `${diffSecs} second${diffSecs !== 1 ? 's' : ''}`;
+    }
+  }
+
+  getShortTimeZone(timeZone: string): string {
+    const date = new Date();
+    return date.toLocaleTimeString('en-US', { timeZone, timeZoneName: 'short' }).split(' ').pop() || timeZone;
   }
 }

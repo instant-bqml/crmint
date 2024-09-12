@@ -55,6 +55,23 @@
 <div class="crmi-config-wrap">
   <mat-card>
     <mat-card-title>Reset Pipelines</mat-card-title>
-    <button mat-raised-button type="button" color="warn" (click)="resetStatuses()" [disabled]="resetStatusesIsRunning()">Reset</button>
+    <button 
+      mat-raised-button 
+      type="button" 
+      color="warn" 
+      (click)="resetStatusesAndClearTasks()" 
+      [disabled]="resetStatusesAndClearTasksIsRunning()">
+      Reset
+    </button>
+    <div class="reset-info">
+      <span *ngIf="runningTasksCount > 0">
+        ({{ runningTasksCount }} running tasks, oldest from
+        {{ oldestTaskTime | date:'medium':undefined:'en-US' }}
+        {{ timeZone }} - {{ timeSinceOldestTask }} ago)
+      </span>
+      <span *ngIf="runningTasksCount === 0">
+        (No running tasks)
+      </span>
+    </div>
   </mat-card>
 </div>

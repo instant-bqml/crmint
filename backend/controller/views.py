@@ -147,7 +147,35 @@ class ResetStatuses(Resource):
       return {'error': str(e)}, 500
 
 
+class ClearTasks(Resource):
+  """Endpoint to clear all enqueued tasks."""
+
+  def post(self):
+    try:
+      database.truncate_enqueued_tasks()
+      return '', 200
+    except Exception as e:
+      return {'error': str(e)}, 500
+
+
+class TasksInfo(Resource):
+  """Endpoint to get information about running tasks."""
+
+  def get(self):
+    try:
+      tasks_info = database.get_tasks_info()
+      return {
+        'oldest_task_time': tasks_info['oldest_task_time'].isoformat() + 'Z'
+                            if tasks_info['oldest_task_time'] else None,
+        'running_tasks_count': tasks_info['running_tasks_count']
+      }, 200
+    except Exception as e:
+      return {'error': str(e)}, 500
+
+
 api.add_resource(Configuration, '/configuration')
 api.add_resource(GlobalVariable, '/global_variables')
 api.add_resource(GeneralSettingsRoute, '/general_settings')
 api.add_resource(ResetStatuses, '/reset/statuses')
+api.add_resource(ClearTasks, '/clear_tasks')
+api.add_resource(TasksInfo, '/tasks_info')

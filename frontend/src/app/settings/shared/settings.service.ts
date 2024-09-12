@@ -25,6 +25,8 @@ export class SettingsService extends ApiService {
   private variablesUrl = `${this.host}/global_variables`;
   private settingsUrl = `${this.host}/general_settings`;
   private resetStatusesUrl = `${this.host}/reset/statuses`;
+  private clearTasksUrl = `${this.host}/clear_tasks`;
+  private tasksInfoUrl = `${this.host}/tasks_info`;
 
   getConfigData(): Promise<Config> {
     this.removeContentTypeHeader();
@@ -47,14 +49,23 @@ export class SettingsService extends ApiService {
                .catch(this.handleError);
   }
 
-  resetStatuses(callback: CallableFunction) {
+  resetStatusesAndClearTasks(callback: CallableFunction) {
     this.addContentTypeHeader();
-    return this.http.post(this.resetStatusesUrl, null)
-        .toPromise()
-        .then(() => callback())
-        .catch((error: Error| string) => {
-          callback();
-          this.handleError(error);
-        });
+    return Promise.all([
+      this.http.post(this.resetStatusesUrl, null).toPromise(),
+      this.http.post(this.clearTasksUrl, null).toPromise()
+    ])
+      .then(() => callback())
+      .catch((error: Error | string) => {
+        callback();
+        this.handleError(error);
+      });
+  }
+
+  getTasksInfo(): Promise<any> {
+    this.removeContentTypeHeader();
+    return this.http.get(this.tasksInfoUrl)
+               .toPromise()
+               .catch(this.handleError);
   }
 }

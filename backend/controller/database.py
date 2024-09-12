@@ -72,6 +72,23 @@ def reset_jobs_and_pipelines_statuses_to_idle() -> None:
     offset += batch_size
 
 
+def truncate_enqueued_tasks():
+  """Truncates the enqueued_tasks table."""
+  session = extensions.db.session
+  session.execute('TRUNCATE TABLE enqueued_tasks')
+  session.commit()
+
+
+def get_tasks_info():
+  """Retrieves information about the oldest task and count of running tasks."""
+  oldest_task = models.TaskEnqueued.query.order_by(models.TaskEnqueued.id).first()
+  running_tasks_count = models.TaskEnqueued.query.count()
+  return {
+    'oldest_task_time': oldest_task.created_at if oldest_task else None,
+    'running_tasks_count': running_tasks_count
+  }
+
+
 def shutdown(app: flask.Flask) -> None:
   """Cleans database state."""
   # Find all Sessions in memory and close them.
