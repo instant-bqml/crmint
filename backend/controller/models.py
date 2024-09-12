@@ -386,11 +386,14 @@ class TaskEnqueued(extensions.db.Model):
   task_name = Column(String(100), index=True, unique=True)
 
   @classmethod
-  def delete_tasks_like_namespace(cls, pipeline_id: int):
+  def delete_tasks_like_namespace(cls, pipeline_id: int, job_id: Optional[int] = None):
     """Deletes tasks from the enqueued_tasks table that match the pattern."""
-    pattern = f'pipeline={pipeline_id}_%'
+    if job_id is not None:
+      pattern = f'pipeline={pipeline_id}_job={job_id}'
+    else:
+      pattern = f'pipeline={pipeline_id}_%'
     num_deleted = cls.query.filter(cls.task_namespace.like(pattern)).delete(
-        synchronize_session=False
+      synchronize_session=False
     )
     return num_deleted
 
@@ -657,6 +660,19 @@ class Job(extensions.db.Model):
       job_id=self.id)
     return task
 
+  def _get_tasks_with_namespace(self) -> list[TaskEnqueued]:
+    """Returns list of tasks attached to a given name."""
+    task_namespace = self._get_task_namespace()
+    tasks = TaskEnqueued.where(task_namespace=task_namespace).all()
+    crmint_logging.log_message(
+      f'Retrieved {len(tasks)} tasks with name: {task_name} '
+      f'in namespace: {task_namespace} from enqueued_tasks table.',
+      log_level='DEBUG',
+      worker_class=self.worker_class,
+      pipeline_id=self.pipeline_id,
+      job_id=self.id)
+    return tasks
+
   def _get_tasks_with_name(self, task_name: str) -> list[TaskEnqueued]:
     """Returns list of tasks attached to a given name."""
     task_namespace = self._get_task_namespace()
@@ -797,7 +813,25 @@ class Job(extensions.db.Model):
 
     # Deletes matched tasks
     for task_inst in found_tasks:
-      task_inst.delete()
+      tasks_with_namespace = self._get_tasks_with_namespace()
+      crmint_logging.log_message(
+        f'Found {len(tasks_with_name)} tasks with name {task_name} '
+        f'before deletion.',
+        log_level='DEBUG',
+        worker_class=self.worker_class,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id)
+      for task in tasks_with_name:
+        num_deleted = TaskEnqueued.delete_tasks_like_namespace(
+          pipeline_id=self.pipeline_id, 
+          job_id=self.id)
+        crmint_logging.log_message(
+          f'Deleted {num_deleted} tasks for pipeline_id {self.pipeline_id} '
+          f'and job_id {self.id}.',
+          log_level='INFO',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id)
       crmint_logging.log_message(
         f'Task {task_inst.task_name} deleted from enqueued_tasks table.',
         log_level='DEBUG',
