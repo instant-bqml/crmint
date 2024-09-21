@@ -758,42 +758,26 @@ class Job(extensions.db.Model):
       pipeline_id=self.pipeline_id,
       job_id=self.id)
     if not found_tasks:
+      # Check if the job is already in a terminal state
+      if self.status in [Job.STATUS.FAILED, Job.STATUS.SUCCEEDED]:
+        crmint_logging.log_message(
+          f'Task {task_name} already processed. Job {self.id} is in state {self.status}.',
+          log_level='INFO',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id
+        )
+        return 0  # No further action needed
+      
+      # Log warning and do not alter job status
       crmint_logging.log_message(
         f'Task not found in enqueued_tasks table for task name: {task_name}.',
         log_level='WARNING',
         worker_class=self.worker_class,
         pipeline_id=self.pipeline_id,
-        job_id=self.id)
-      try:
-        # Make the job fail
-        self.set_status(Job.STATUS.FAILED)
-        crmint_logging.log_message(
-          f'Job {self.id} set to FAILED due to unregistered task.',
-          log_level='ERROR',
-          worker_class=self.worker_class,
-          pipeline_id=self.pipeline_id,
-          job_id=self.id)
-        # Clear the tasks in the namespace where the pipeline_id matches
-        # in the enqueued_tasks table.
-        num_deleted = TaskEnqueued.delete_tasks_like_namespace(
-          self.pipeline_id)
-        crmint_logging.log_message(
-          f'Cleared {num_deleted} tasks for pipeline_id {self.pipeline_id} '
-          f'from enqueued_tasks table.',
-          log_level='INFO',
-          worker_class=self.worker_class,
-          pipeline_id=self.pipeline_id,
-          job_id=self.id)
-        # Determine if the pipeline should be considered finished or failed
-        self.pipeline.leaf_job_finished()
-      except Exception as e:
-        crmint_logging.log_message(
-          f'Error handling task not found for task name {task_name}: {e}',
-          log_level='ERROR',
-          worker_class=self.worker_class,
-          pipeline_id=self.pipeline_id,
-          job_id=self.id)
-      return 0
+        job_id=self.id
+      )
+      return 0  # Exit without changing job status
 
     # Deletes matched tasks
     for task_inst in found_tasks:
