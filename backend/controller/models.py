@@ -769,7 +769,7 @@ class Job(extensions.db.Model):
         )
         return 0  # No further action needed
       
-      # Log warning and do not alter job status
+      # Log warning and set job status to FAILED to force pipeline conclusion
       crmint_logging.log_message(
         f'Task not found in enqueued_tasks table for task name: {task_name}.',
         log_level='WARNING',
@@ -777,7 +777,39 @@ class Job(extensions.db.Model):
         pipeline_id=self.pipeline_id,
         job_id=self.id
       )
-      return 0  # Exit without changing job status
+      try:
+        # Mark the job as FAILED to force pipeline conclusion
+        self.set_status(Job.STATUS.FAILED)
+        crmint_logging.log_message(
+          f'Job {self.id} set to FAILED due to unregistered task.',
+          log_level='ERROR',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id
+        )
+        
+        # Clear any lingering tasks in the namespace
+        num_deleted = TaskEnqueued.delete_tasks_like_namespace(self.pipeline_id)
+        crmint_logging.log_message(
+          f'Cleared {num_deleted} tasks for pipeline_id {self.pipeline_id} '
+          f'from enqueued_tasks table.',
+          log_level='INFO',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id
+        )
+        
+        # Notify the pipeline that a leaf job has finished
+        self.pipeline.leaf_job_finished()
+      except Exception as e:
+        crmint_logging.log_message(
+          f'Error handling task not found for task name {task_name}: {e}',
+          log_level='ERROR',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id
+        )
+      return 0
 
     # Deletes matched tasks
     for task_inst in found_tasks:
