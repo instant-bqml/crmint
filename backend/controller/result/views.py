@@ -18,6 +18,7 @@ import flask
 from flask_restful import Api
 from flask_restful import Resource
 
+from common import crmint_logging
 from common import message
 from common import result
 from controller import models
