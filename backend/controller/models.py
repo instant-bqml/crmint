@@ -780,8 +780,6 @@ class Job(extensions.db.Model):
       worker_class=self.worker_class,
       pipeline_id=self.pipeline_id,
       job_id=self.id)
-    # Clean up orphaned tasks before enqueuing a new one.
-    TaskEnqueued.cleanup_orphaned_tasks()
     if self.status != Job.STATUS.RUNNING:
       crmint_logging.log_message(
         f'Cannot enqueue task: job status is {self.status}, not RUNNING.',
@@ -790,6 +788,8 @@ class Job(extensions.db.Model):
         pipeline_id=self.pipeline_id,
         job_id=self.id)
       return None
+    # Clean up orphaned tasks before enqueuing a new one.
+    TaskEnqueued.cleanup_orphaned_tasks()
     name = f"task_{self.pipeline_id}_{str(uuid.uuid4())}"
     added_task = self._add_task_with_name(name)
     if self._get_tasks_with_name(name):
