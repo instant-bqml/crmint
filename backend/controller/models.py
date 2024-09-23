@@ -395,6 +395,99 @@ class TaskEnqueued(extensions.db.Model):
     return num_deleted
 
   @classmethod
+  def cleanup_orphaned_tasks(cls, threshold_minutes: int = 60):
+    """Deletes tasks older than the specified threshold in minutes."""
+    threshold_time = datetime.datetime.utcnow() - datetime.timedelta(
+        minutes=threshold_minutes
+    )
+    old_tasks = cls.query.filter(cls.created_at < threshold_time).all()
+    num_old_tasks = len(old_tasks)
+    if num_old_tasks > 0:
+      crmint_logging.log_message(
+        f"Found {num_old_tasks} old tasks older than {threshold_minutes} "
+        f"minutes. Flushing them now.",
+        log_level="INFO",
+        worker_class="TaskEnqueued",
+        pipeline_id=0,
+        job_id=0,
+      )
+      for task in old_tasks:
+        crmint_logging.log_message(
+          f"Flushing task: {task.task_name}",
+          log_level="INFO",
+          worker_class="TaskEnqueued",
+          pipeline_id=0,
+          job_id=0,
+        )
+        # Parse task_namespace to get pipeline_id and job_id
+        match = re.match(r'pipeline=(\d+)_job=(\d+)', task.task_namespace)
+        if match:
+          pipeline_id = int(match.group(1))
+          job_id = int(match.group(2))
+          # Load Job and Pipeline
+          job = Job.find(job_id)
+          pipeline = Pipeline.find(pipeline_id)
+          # Set job and pipeline to IDLE.
+          if job:
+            job.set_status(Job.STATUS.IDLE)
+            crmint_logging.log_message(
+              f"Set job {job_id} to IDLE due to old task.",
+              log_level="INFO",
+              worker_class="TaskEnqueued",
+              pipeline_id=pipeline_id,
+              job_id=job_id,
+            )
+          if pipeline:
+            # Set all jobs in the pipeline to IDLE.
+            for p_job in pipeline.jobs:
+              p_job.set_status(Job.STATUS.IDLE)
+              crmint_logging.log_message(
+                f"Set job {p_job.id} to IDLE.",
+                log_level="INFO",
+                worker_class="TaskEnqueued",
+                pipeline_id=pipeline_id,
+                job_id=p_job.id,
+              )
+            pipeline.set_status(Pipeline.STATUS.IDLE)
+            crmint_logging.log_message(
+              f"Set pipeline {pipeline_id} to IDLE.",
+              log_level="INFO",
+              worker_class="TaskEnqueued",
+              pipeline_id=pipeline_id,
+              job_id=0,
+            )
+            # Call leaf_job_finished to handle pipeline failure logic
+            pipeline.leaf_job_finished()
+        else:
+          crmint_logging.log_message(
+            f"Could not parse task_namespace: {task.task_namespace}",
+            log_level="WARNING",
+            worker_class="TaskEnqueued",
+            pipeline_id=0,
+            job_id=0,
+          )
+      # Delete old tasks
+      num_deleted = cls.query.filter(cls.created_at < threshold_time).delete(
+        synchronize_session=False
+      )
+      crmint_logging.log_message(
+        f"Flushed {num_deleted} old tasks.",
+        log_level="INFO",
+        worker_class="TaskEnqueued",
+        pipeline_id=0,
+        job_id=0,
+      )
+    else:
+      crmint_logging.log_message(
+        f"No old tasks found older than {threshold_minutes} minutes.",
+        log_level="INFO",
+        worker_class="TaskEnqueued",
+        pipeline_id=0,
+        job_id=0,
+      )
+    return num_old_tasks
+
+  @classmethod
   def count_in_namespace(cls, task_namespace: str) -> int:
     """Returns the number of tasks still running in the given namespace."""
     count_query = cls.where(task_namespace=task_namespace)
@@ -680,6 +773,15 @@ class Job(extensions.db.Model):
               worker_params: dict[str, ...],
               delay: int = 0,
               attempt: int = 0) -> Union[TaskEnqueued, None]:
+    crmint_logging.log_message(
+      f'Pipeline ID: {self.pipeline_id}, Job ID: {self.id} '
+      f'has status: {self.status}',
+      log_level='WARNING',
+      worker_class=self.worker_class,
+      pipeline_id=self.pipeline_id,
+      job_id=self.id)
+    # Clean up orphaned tasks before enqueuing a new one.
+    TaskEnqueued.cleanup_orphaned_tasks()
     if self.status != Job.STATUS.RUNNING:
       crmint_logging.log_message(
         f'Cannot enqueue task: job status is {self.status}, not RUNNING.',
