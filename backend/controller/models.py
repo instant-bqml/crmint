@@ -776,7 +776,7 @@ class Job(extensions.db.Model):
     crmint_logging.log_message(
       f'Pipeline ID: {self.pipeline_id}, Job ID: {self.id} '
       f'has status: {self.status}',
-      log_level='WARNING',
+      log_level='INFO',
       worker_class=self.worker_class,
       pipeline_id=self.pipeline_id,
       job_id=self.id)
