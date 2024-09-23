@@ -59,42 +59,9 @@ class BQWorker(worker.Worker):
     return bigquery.QueryJobConfig(dry_run=True, use_query_cache=False)
 
   def _wait(self, job):
-    """Waits for job completion and handles transient errors with retries."""
-    delay = 5
-    waiting_time = 0
-    retries = 5
-    attempt = 0
-    while not job.done():
-      if waiting_time > 300:  # Once 5 minutes have passed, spawn BQWaiter.
-        self._enqueue('BQWaiter', {
-          'job_id': job.job_id,
-          'location': job.location
-        }, 60)
-        return
-      try:
-        time.sleep(delay)
-        waiting_time += delay
-        if job.done():
-          break
-      except worker.WorkerException as e:
-        if attempt < retries:
-          delay = min(30, delay * 2)  # Exponential backoff
-          self.log_info(f'Transient error encountered: {e}. Retrying in {delay} seconds...')
-          time.sleep(delay)
-          attempt += 1
-        else:
-          self.log_error(f'Failed after {retries} attempts: {e}')
-          raise worker.WorkerException(f'Failed after {retries} attempts: {e}')
-    # Handle job error results with retries
-    while job.error_result is not None and attempt < retries:
-      delay = min(30, delay * 2)  # Exponential backoff
-      self.log_info(f'Error encountered: {job.error_result["message"]}. Retrying in {delay} seconds...')
-      time.sleep(delay)
-      attempt += 1
-      job.reload()  # Reload the job to check its status again
-      if job.done() and job.error_result is None:
-        return  # Exit if the job completes successfully
-
-    if job.error_result is not None:
-      self.log_error(f'Failed after {retries} attempts: {job.error_result["message"]}')
+    """Waits for job completion and relays to BQWaiter if it takes too long."""
+    time.sleep(5)
+    if job.error_result:
       raise worker.WorkerException(job.error_result['message'])
+    if not job.done():
+      self._enqueue('BQWaiter', {'job_id': job.job_id, 'location': job.location}, 30)
