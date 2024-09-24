@@ -869,7 +869,8 @@ class Job(extensions.db.Model):
           pipeline_id=self.pipeline_id,
           job_id=self.id
         )
-        self.set_status(Job.STATUS.IDLE)
+        for job in self.pipeline.jobs:
+          job.set_status(Job.STATUS.IDLE)
         self.pipeline.set_status(Pipeline.STATUS.IDLE)
         self.pipeline.leaf_job_finished()
         return 0
