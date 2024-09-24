@@ -869,7 +869,10 @@ class Job(extensions.db.Model):
           pipeline_id=self.pipeline_id,
           job_id=self.id
         )
-        return 0  # No further action needed
+        self.set_status(Job.STATUS.IDLE)
+        self.pipeline.set_status(Pipeline.STATUS.IDLE)
+        self.pipeline.leaf_job_finished()
+        return 0
       
       # Log warning and set job status to FAILED to force pipeline conclusion
       crmint_logging.log_message(
