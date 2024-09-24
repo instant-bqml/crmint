@@ -869,6 +869,15 @@ class Job(extensions.db.Model):
           pipeline_id=self.pipeline_id,
           job_id=self.id
         )
+        num_deleted = TaskEnqueued.delete_tasks_like_namespace(self.pipeline_id)
+        crmint_logging.log_message(
+          f'Cleared {num_deleted} tasks for pipeline_id {self.pipeline_id} '
+          f'from enqueued_tasks table.',
+          log_level='INFO',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id
+        )
         for job in self.pipeline.jobs:
           job.set_status(Job.STATUS.IDLE)
         self.pipeline.set_status(Pipeline.STATUS.IDLE)
@@ -884,11 +893,9 @@ class Job(extensions.db.Model):
         job_id=self.id
       )
       try:
-        # Mark the job as FAILED to force pipeline conclusion
-        self.set_status(Job.STATUS.FAILED)
         crmint_logging.log_message(
-          f'Job {self.id} set to FAILED due to unregistered task.',
-          log_level='ERROR',
+          f'Job {self.id} set to IDLE due to unregistered task.',
+          log_level='INFO',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
           job_id=self.id
@@ -906,6 +913,9 @@ class Job(extensions.db.Model):
         )
         
         # Notify the pipeline that a leaf job has finished
+        for job in self.pipeline.jobs:
+          job.set_status(Job.STATUS.IDLE)
+        self.pipeline.set_status(Pipeline.STATUS.IDLE)
         self.pipeline.leaf_job_finished()
       except Exception as e:
         crmint_logging.log_message(
