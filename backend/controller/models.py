@@ -485,6 +485,39 @@ class TaskEnqueued(extensions.db.Model):
         pipeline_id=0,
         job_id=0,
       )
+    running_pipelines = Pipeline.query.filter_by(status=Pipeline.STATUS.RUNNING).all()
+    for pipeline in running_pipelines:
+      pattern = f'pipeline={pipeline.id}_%' 
+      task_count = cls.query.filter(cls.task_namespace.like(pattern)).count()
+      if task_count == 0:
+        last_status_change = pipeline.status_changed_at
+        if last_status_change and (datetime.datetime.utcnow() - last_status_change).total_seconds() > 300:
+          crmint_logging.log_message(
+            f"Pipeline {pipeline.id} is running with no enqueued tasks for "
+            f"over 5 minutes. Setting to IDLE.",
+            log_level="INFO",
+            worker_class="TaskEnqueued",
+            pipeline_id=pipeline.id,
+            job_id=0,
+          )
+          for job in pipeline.jobs:
+            job.set_status(Job.STATUS.IDLE)
+            crmint_logging.log_message(
+              f"Set job {job.id} to IDLE.",
+              log_level="INFO",
+              worker_class="TaskEnqueued",
+              pipeline_id=pipeline.id,
+              job_id=job.id,
+            )
+          pipeline.set_status(Pipeline.STATUS.IDLE)
+          crmint_logging.log_message(
+            f"Set pipeline {pipeline.id} to IDLE.",
+            log_level="INFO",
+            worker_class="TaskEnqueued",
+            pipeline_id=pipeline.id,
+            job_id=0,
+          )
+          pipeline.leaf_job_finished()
     return num_old_tasks
 
   @classmethod
