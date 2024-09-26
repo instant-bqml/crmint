@@ -893,8 +893,8 @@ class Job(extensions.db.Model):
     name = f"task_{self.pipeline_id}_{str(uuid.uuid4())}"
     added_task = self._add_task_with_name(name)
     
-    if added_task:  # Check if the task was successfully added
-      confirmed_task = self._get_tasks_with_name(name)  # Retry logic is inside this function
+    if added_task:
+      confirmed_task = self._get_tasks_with_name(name)
       if len(confirmed_task) > 0:
         general_settings = {gs.name: gs.value for gs in GeneralSetting.all()}
         task_inst = task.Task(
