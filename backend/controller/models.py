@@ -902,15 +902,7 @@ class Job(extensions.db.Model):
           worker_params,
           general_settings
         )
-        random_delay = round(random.uniform(0, 2))
-        crmint_logging.log_message(
-          f'Waiting {random_delay} seconds before enqueuing task: {name}.',
-          log_level='INFO',
-          worker_class=self.worker_class,
-          pipeline_id=self.pipeline_id,
-          job_id=self.id
-        )
-        task_inst.enqueue(delay=random_delay)
+        task_inst.enqueue()
         crmint_logging.log_message(
           f'Enqueued task for (worker_class, name): ({worker_class}, {name}).',
           log_level='INFO',
@@ -918,7 +910,6 @@ class Job(extensions.db.Model):
           pipeline_id=self.pipeline_id,
           job_id=self.id
         )
-        TaskEnqueued.check_and_update_pipeline_status()
         return added_task
       else:
         crmint_logging.log_message(
