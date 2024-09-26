@@ -913,7 +913,6 @@ class Job(extensions.db.Model):
           pipeline_id=self.pipeline_id,
           job_id=self.id
         )
-        TaskEnqueued.check_and_update_pipeline_status()
         return added_task
       else:
         crmint_logging.log_message(
