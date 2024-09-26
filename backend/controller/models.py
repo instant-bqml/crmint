@@ -776,31 +776,58 @@ class Job(extensions.db.Model):
   def _get_task_namespace(self):
     return f'pipeline={self.pipeline_id}_job={self.id}'
 
-  def _add_task_with_name(self, task_name) -> TaskEnqueued:
-    """Keeps track of running tasks."""
+  def _add_task_with_name(self, task_name: str) -> TaskEnqueued:
+    """Keeps track of running tasks with commit confirmation."""
     namespace = self._get_task_namespace()
-    task = TaskEnqueued.create(task_namespace=namespace, task_name=task_name)
-    crmint_logging.log_message(
-      f'Added task with name: {task_name} in namespace: {namespace} '
-      f'to enqueued_tasks table.',
-      log_level='DEBUG',
-      worker_class=self.worker_class,
-      pipeline_id=self.pipeline_id,
-      job_id=self.id)
-    return task
+    try:
+      # Create and add the task
+      task = TaskEnqueued.create(task_namespace=namespace, task_name=task_name)
+      extensions.db.session.add(task)
+      extensions.db.session.commit()  # Confirm that the task is committed to the database
+      crmint_logging.log_message(
+        f'Added task with name: {task_name} in namespace: {namespace} '
+        f'to enqueued_tasks table.',
+        log_level='DEBUG',
+        worker_class=self.worker_class,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id
+      )
+      return task
+    except Exception as e:
+      extensions.db.session.rollback()  # Rollback if there is an error
+      crmint_logging.log_message(
+        f'Error adding task {task_name}: {str(e)}',
+        log_level='ERROR',
+        worker_class=self.worker_class,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id
+      )
+      return None
 
   def _get_tasks_with_name(self, task_name: str) -> list[TaskEnqueued]:
-    """Returns list of tasks attached to a given name."""
+    """Returns list of tasks attached to a given name with retries."""
     task_namespace = self._get_task_namespace()
-    tasks = TaskEnqueued.where(task_namespace=task_namespace,
-                               task_name=task_name).all()
+    MAX_RETRIES = 3
+    RETRY_DELAY = 1  # Delay in seconds between retries
+    attempt = 0
+    tasks = []
+
+    while attempt < MAX_RETRIES:
+      tasks = TaskEnqueued.where(task_namespace=task_namespace,
+                                 task_name=task_name).all()
+      if len(tasks) > 0:
+        break  # Exit the loop if tasks are found
+      time.sleep(RETRY_DELAY)  # Wait before retrying
+      attempt += 1
+
     crmint_logging.log_message(
       f'Retrieved {len(tasks)} tasks with name: {task_name} '
-      f'in namespace: {task_namespace} from enqueued_tasks table.',
+      f'in namespace: {task_namespace} from enqueued_tasks table after {attempt + 1} attempt(s).',
       log_level='DEBUG',
       worker_class=self.worker_class,
       pipeline_id=self.pipeline_id,
-      job_id=self.id)
+      job_id=self.id
+    )
     return tasks
 
   def _enqueued_task_count(self):
@@ -813,59 +840,78 @@ class Job(extensions.db.Model):
               delay: int = 0,
               attempt: int = 0) -> Union[TaskEnqueued, None]:
     crmint_logging.log_message(
-      f'Pipeline ID: {self.pipeline_id}, Job ID: {self.id} '
-      f'has status: {self.status}',
+      f'Pipeline ID: {self.pipeline_id}, Job ID: {self.id} has status: {self.status}',
       log_level='INFO',
       worker_class=self.worker_class,
       pipeline_id=self.pipeline_id,
-      job_id=self.id)
+      job_id=self.id
+    )
     if self.status != Job.STATUS.RUNNING:
       crmint_logging.log_message(
         f'Cannot enqueue task: job status is {self.status}, not RUNNING.',
         log_level='WARNING',
         worker_class=self.worker_class,
         pipeline_id=self.pipeline_id,
-        job_id=self.id)
+        job_id=self.id
+      )
       return None
+
     # Clean up orphaned tasks before enqueuing a new one.
     TaskEnqueued.cleanup_orphaned_tasks()
+
+    # Add and confirm task creation
     name = f"task_{self.pipeline_id}_{str(uuid.uuid4())}"
     added_task = self._add_task_with_name(name)
-    if len(self._get_tasks_with_name(name)) > 0:
-      general_settings = {gs.name: gs.value for gs in GeneralSetting.all()}
-      task_inst = task.Task(
+    
+    if added_task:  # Check if the task was successfully added
+      confirmed_task = self._get_tasks_with_name(name)  # Retry logic is inside this function
+      if len(confirmed_task) > 0:
+        general_settings = {gs.name: gs.value for gs in GeneralSetting.all()}
+        task_inst = task.Task(
           name,
           self.pipeline_id,
           self.id,
           worker_class,
           worker_params,
-          general_settings)
-      random_delay = round(random.uniform(0, 15))
-      crmint_logging.log_message(
+          general_settings
+        )
+        random_delay = round(random.uniform(0, 15))
+        crmint_logging.log_message(
           f'Waiting {random_delay} seconds before enqueuing task: {name}.',
           log_level='INFO',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
-          job_id=self.id)
-      time.sleep(random_delay)
-      task_inst.enqueue()
-      crmint_logging.log_message(
+          job_id=self.id
+        )
+        time.sleep(random_delay)
+        task_inst.enqueue()
+        crmint_logging.log_message(
           f'Enqueued task for (worker_class, name): ({worker_class}, {name}).',
           log_level='INFO',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
-          job_id=self.id)
-      TaskEnqueued.check_and_update_pipeline_status()
-      return added_task
+          job_id=self.id
+        )
+        TaskEnqueued.check_and_update_pipeline_status()
+        return added_task
+      else:
+        crmint_logging.log_message(
+          f'Task {name} was not found in the database after creation.',
+          log_level='ERROR',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id
+        )
+        return None
     else:
       if attempt < self.MAX_RETRIES:
         crmint_logging.log_message(
-          f'Failed to add task: {name}, retrying '
-          f'(attempt {attempt + 1}/{self.MAX_RETRIES}).',
+          f'Failed to add task: {name}, retrying (attempt {attempt + 1}/{self.MAX_RETRIES}).',
           log_level='WARNING',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
-          job_id=self.id)
+          job_id=self.id
+        )
         time.sleep(self.RETRY_DELAY)
         return self.enqueue(worker_class, worker_params, delay, attempt + 1)
       else:
@@ -874,7 +920,8 @@ class Job(extensions.db.Model):
           log_level='ERROR',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
-          job_id=self.id)
+          job_id=self.id
+        )
         return None
 
   def _task_finished(self,
