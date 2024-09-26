@@ -37,7 +37,7 @@ class VertexAIWaiter(vertexai_worker.VertexAIWorker):
       self._enqueue('VertexAIWaiter', {
           'id': self._params['id'],
           'worker_class': 'VertexAITabularTrainer'
-      }, 60)
+      }, 30)
     elif pipeline.state == ps.PipelineState.PIPELINE_STATE_SUCCEEDED:
       self.log_info('Finished successfully!')
 
@@ -54,7 +54,7 @@ class VertexAIWaiter(vertexai_worker.VertexAIWorker):
       self._enqueue('VertexAIWaiter', {
           'id': self._params['id'],
           'worker_class': 'VertexAIBatchPredictorToBQ'
-      }, 60)
+      }, 30)
     elif job.state == js.JobState.JOB_STATE_SUCCEEDED:
       self.log_info('Finished successfully!')
 

@@ -83,48 +83,30 @@ class VertexAIWorker(worker.Worker):
     return f'projects/{project_id}/locations/{location}'
 
   def _wait_for_pipeline(self, pipeline):
-    """Waits for pipeline completion.
-
-    It will relay to VertexAIWaiter if it takes too long.
-    """
-    delay = 5
-    waiting_time = 5
-    time.sleep(delay)
-    while pipeline.state not in _PIPELINE_COMPLETE_STATES:
-      if waiting_time > 300:  # Once 5 minute has passed, spawn VertexAIWaiter.
-        self._enqueue(
-            'VertexAIWaiter', {
-                'id': pipeline.name,
-                'worker_class': 'VertexAITabularTrainer'
-            }, 60)
-        return None
-      if delay < 30:
-        delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
-      time.sleep(delay)
-      waiting_time += delay
+    """Waits for pipeline completion and relays to VertexAIWaiter if it takes too long."""
+    time.sleep(5)
+    if pipeline.state not in _PIPELINE_COMPLETE_STATES:
+      # Enqueue if the pipeline is not complete within the first check.
+      self._enqueue(
+        'VertexAIWaiter', {
+          'id': pipeline.name,
+          'worker_class': 'VertexAITabularTrainer'
+        }, 30)
+      return None
     if pipeline.state == ps.PipelineState.PIPELINE_STATE_FAILED:
       raise worker.WorkerException(f'Training pipeline {pipeline.name} failed.')
 
   def _wait_for_job(self, job):
-    """Waits for batch prediction job completion.
-
-    It will relay to VertexAIWaiter if it takes too long.
-    """
-    delay = 5
-    waiting_time = 5
-    time.sleep(delay)
-    while job.state not in _JOB_COMPLETE_STATES:
-      if waiting_time > 300:  # Once 5 minute has passed, spawn VertexAIWaiter.
-        self._enqueue(
-            'VertexAIWaiter', {
-                'id': job.name,
-                'worker_class': 'VertexAIBatchPredictorToBQ'},
-            60)
-        return None
-      if delay < 30:
-        delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
-      time.sleep(delay)
-      waiting_time += delay
+    """Waits for batch prediction job completion and relays to VertexAIWaiter if it takes too long."""
+    time.sleep(5)
+    if job.state not in _JOB_COMPLETE_STATES:
+      # Enqueue if the job is not complete within the first check.
+      self._enqueue(
+        'VertexAIWaiter', {
+          'id': job.name,
+          'worker_class': 'VertexAIBatchPredictorToBQ'
+        }, 30)
+      return None
     if job.state == js.JobState.JOB_STATE_FAILED:
       raise worker.WorkerException(f'Job {job.name} failed.')
 
