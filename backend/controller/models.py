@@ -934,7 +934,8 @@ class Job(extensions.db.Model):
           job.status == Job.STATUS.WAITING for job in self.dependent_jobs)
         if self.dependent_jobs and waiting_signal:
           crmint_logging.log_message(
-            f'Starting dependent jobs for job {self.id} after task {task_name} not found.',
+            f'Starting dependent jobs for job {self.id} '
+            f'after task {task_name} not found.',
             log_level='INFO',
             worker_class=self.worker_class,
             pipeline_id=self.pipeline_id,
