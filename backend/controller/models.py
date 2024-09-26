@@ -908,70 +908,49 @@ class Job(extensions.db.Model):
       pipeline_id=self.pipeline_id,
       job_id=self.id)
     if not found_tasks:
-      # Check if the job is already in a terminal state
-      if self.status in [Job.STATUS.FAILED, Job.STATUS.SUCCEEDED]:
+      # Check if the job is already in a terminal state (SUCCEEDED or FAILED)
+      if self.status == Job.STATUS.SUCCEEDED:
         crmint_logging.log_message(
-          f'Task {task_name} already processed. Job {self.id} is in state {self.status}.',
+          f'Task {task_name} already processed. Job {self.id} succeeded.',
           log_level='INFO',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
           job_id=self.id
         )
-        stopping_signal = self.status == Job.STATUS.STOPPING
-        waiting_signal = all(
-            job.status == Job.STATUS.WAITING for job in self.dependent_jobs)
-        if self.dependent_jobs and not stopping_signal and waiting_signal:
+        # Ensure only one task starts dependent jobs by using the lock
+        num_running_tasks = self._enqueued_task_count()
+        was_last_task_lock = num_running_tasks == 0
+        if not was_last_task_lock:
           crmint_logging.log_message(
-            f'Starting dependent_jobs in _task_finished [not found_tasks].',
+            f'Still running tasks for job {self.id}, skipping dependent jobs start.',
             log_level='INFO',
             worker_class=self.worker_class,
             pipeline_id=self.pipeline_id,
-            job_id=self.id)
+            job_id=self.id
+          )
+          return num_running_tasks
+        # Start dependent jobs if all are in WAITING state
+        waiting_signal = all(job.status == Job.STATUS.WAITING for job in self.dependent_jobs)
+        if self.dependent_jobs and waiting_signal:
+          crmint_logging.log_message(
+            f'Starting dependent jobs for job {self.id} after task {task_name} not found.',
+            log_level='INFO',
+            worker_class=self.worker_class,
+            pipeline_id=self.pipeline_id,
+            job_id=self.id
+          )
           self._start_dependent_jobs()
-          return 0
-
-      # Log warning and set job status to FAILED to force pipeline conclusion
-      crmint_logging.log_message(
-        f'Task not found in enqueued_tasks table for task name: {task_name}.',
-        log_level='WARNING',
-        worker_class=self.worker_class,
-        pipeline_id=self.pipeline_id,
-        job_id=self.id
-      )
-      try:
+        return 0
+      elif self.status == Job.STATUS.FAILED:
+        # Job has failed, so log it and stop further actions
         crmint_logging.log_message(
-          f'Job {self.id} set to IDLE due to unregistered task.',
+          f'Task {task_name} already processed. Job {self.id} is in a failed state.',
           log_level='INFO',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
           job_id=self.id
         )
-        
-        # Clear any lingering tasks in the namespace
-        num_deleted = TaskEnqueued.delete_tasks_like_namespace(self.pipeline_id)
-        crmint_logging.log_message(
-          f'Cleared {num_deleted} tasks for pipeline_id {self.pipeline_id} '
-          f'from enqueued_tasks table.',
-          log_level='INFO',
-          worker_class=self.worker_class,
-          pipeline_id=self.pipeline_id,
-          job_id=self.id
-        )
-        
-        # Notify the pipeline that a leaf job has finished
-        for job in self.pipeline.jobs:
-          job.set_status(Job.STATUS.IDLE)
-        self.pipeline.set_status(Pipeline.STATUS.IDLE)
-        self.pipeline.leaf_job_finished()
-      except Exception as e:
-        crmint_logging.log_message(
-          f'Error handling task not found for task name {task_name}: {e}',
-          log_level='ERROR',
-          worker_class=self.worker_class,
-          pipeline_id=self.pipeline_id,
-          job_id=self.id
-        )
-      return 0
+        return 0
 
     # Deletes matched tasks
     for task_inst in found_tasks:
