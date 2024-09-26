@@ -486,12 +486,17 @@ class TaskEnqueued(extensions.db.Model):
         pipeline_id=0,
         job_id=0,
       )
+    return num_old_tasks
+  
+  @classmethod
+  def check_and_update_pipeline_status(cls):
+    """Checks running pipelines and updates their status if needed."""
     running_pipelines = Pipeline.query.filter_by(status=Pipeline.STATUS.RUNNING).all()
     for pipeline in running_pipelines:
-      pattern = f'pipeline={pipeline.id}_%' 
+      pattern = f'pipeline={pipeline.id}_%'
       task_count = cls.query.filter(cls.task_namespace.like(pattern)).count()
       if task_count == 0:
-        last_status_change = pipeline.status_changed_at
+        last_status_change = max(job.status_changed_at for job in pipeline.jobs)
         if last_status_change and (datetime.datetime.utcnow() - last_status_change).total_seconds() > 300:
           crmint_logging.log_message(
             f"Pipeline {pipeline.id} is running with no enqueued tasks for "
@@ -519,7 +524,7 @@ class TaskEnqueued(extensions.db.Model):
             job_id=0,
           )
           pipeline.leaf_job_finished()
-    return num_old_tasks
+    return
 
   @classmethod
   def count_in_namespace(cls, task_namespace: str) -> int:
@@ -849,6 +854,7 @@ class Job(extensions.db.Model):
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
           job_id=self.id)
+      TaskEnqueued.check_and_update_pipeline_status()
       return added_task
     else:
       if attempt < self.MAX_RETRIES:
