@@ -921,6 +921,12 @@ class Job(extensions.db.Model):
         waiting_signal = all(
             job.status == Job.STATUS.WAITING for job in self.dependent_jobs)
         if self.dependent_jobs and not stopping_signal and waiting_signal:
+          crmint_logging.log_message(
+            f'Starting dependent_jobs in _task_finished [not found_tasks].',
+            log_level='INFO',
+            worker_class=self.worker_class,
+            pipeline_id=self.pipeline_id,
+            job_id=self.id)
           self._start_dependent_jobs()
           return 0
 
@@ -988,6 +994,12 @@ class Job(extensions.db.Model):
     #       task can validate this condition.
     was_last_task_lock = num_running_tasks == 0
     if not was_last_task_lock:
+      crmint_logging.log_message(
+        f'if not was_last_task_lock',
+        log_level='INFO',
+        worker_class=self.worker_class,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id)
       return num_running_tasks
 
     # Updates the job database status if there is no more running tasks.
@@ -1000,6 +1012,12 @@ class Job(extensions.db.Model):
     # Once the job status has been updated, we can check if the pipeline has
     # already been marked failed to avoid notifying multiple times users.
     if self.pipeline.status == Pipeline.STATUS.FAILED:
+      crmint_logging.log_message(
+        f'self.pipeline.status == Pipeline.STATUS.FAILED',
+        log_level='INFO',
+        worker_class=self.worker_class,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id)
       return 0
 
     # We can safely start children jobs, because of our above concurrent lock.
@@ -1008,10 +1026,22 @@ class Job(extensions.db.Model):
     waiting_signal = all(
         job.status == Job.STATUS.WAITING for job in self.dependent_jobs)
     if self.dependent_jobs and not stopping_signal and waiting_signal:
+      crmint_logging.log_message(
+        f'_start_dependent_jobs',
+        log_level='INFO',
+        worker_class=self.worker_class,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id)
       self._start_dependent_jobs()
       return 0
 
     self.pipeline.leaf_job_finished()
+    crmint_logging.log_message(
+      f'self.pipeline.leaf_job_finished',
+      log_level='INFO',
+      worker_class=self.worker_class,
+      pipeline_id=self.pipeline_id,
+      job_id=self.id)
     return 0
 
   def task_succeeded(self, task_name: str) -> int:
