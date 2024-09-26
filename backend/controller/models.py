@@ -812,7 +812,7 @@ class Job(extensions.db.Model):
       # Create and add the task
       task = TaskEnqueued.create(task_namespace=namespace, task_name=task_name)
       extensions.db.session.add(task)
-      extensions.db.session.commit()  # Confirm that the task is committed to the database
+      extensions.db.session.commit()
       crmint_logging.log_message(
         f'Added task with name: {task_name} in namespace: {namespace} '
         f'to enqueued_tasks table.',
@@ -927,7 +927,8 @@ class Job(extensions.db.Model):
     else:
       if attempt < self.MAX_RETRIES:
         crmint_logging.log_message(
-          f'Failed to add task: {name}, retrying (attempt {attempt + 1}/{self.MAX_RETRIES}).',
+          f'Failed to add task: {name}, retrying '
+          f'(attempt {attempt + 1}/{self.MAX_RETRIES}).',
           log_level='WARNING',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
@@ -937,7 +938,8 @@ class Job(extensions.db.Model):
         return self.enqueue(worker_class, worker_params, delay, attempt + 1)
       else:
         crmint_logging.log_message(
-          f'Failed to add task with name: {name} after {self.MAX_RETRIES} attempts.',
+          f'Failed to add task with name: {name} after '
+          f'{self.MAX_RETRIES} attempts.',
           log_level='ERROR',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
