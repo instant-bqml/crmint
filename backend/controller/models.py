@@ -519,6 +519,13 @@ class TaskEnqueued(extensions.db.Model):
 
     for pipeline in running_pipelines:
       task_count = len(pipeline_task_map.get(pipeline.id, []))
+      crmint_logging.log_message(
+        f"Task count for pipeline {pipeline.id}: {task_count}.",
+        log_level="INFO",
+        worker_class="TaskEnqueued",
+        pipeline_id=pipeline.id,
+        job_id=0,
+      )
       if task_count == 0:
         last_status_change = max(job.status_changed_at for job in pipeline.jobs)
         timeout = pipeline.custom_timeout if hasattr(pipeline, 'custom_timeout') else 300
