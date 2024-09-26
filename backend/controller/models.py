@@ -847,7 +847,8 @@ class Job(extensions.db.Model):
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
           job_id=self.id)
-      task_inst.enqueue(delay=random_delay)
+      time.sleep(random_delay)
+      task_inst.enqueue()
       crmint_logging.log_message(
           f'Enqueued task for (worker_class, name): ({worker_class}, {name}).',
           log_level='INFO',
@@ -916,21 +917,13 @@ class Job(extensions.db.Model):
           pipeline_id=self.pipeline_id,
           job_id=self.id
         )
-        num_deleted = TaskEnqueued.delete_tasks_like_namespace(self.pipeline_id)
-        crmint_logging.log_message(
-          f'Cleared {num_deleted} tasks for pipeline_id {self.pipeline_id} '
-          f'from enqueued_tasks table.',
-          log_level='INFO',
-          worker_class=self.worker_class,
-          pipeline_id=self.pipeline_id,
-          job_id=self.id
-        )
-        for job in self.pipeline.jobs:
-          job.set_status(Job.STATUS.IDLE)
-        self.pipeline.set_status(Pipeline.STATUS.IDLE)
-        self.pipeline.leaf_job_finished()
-        return 0
-      
+        stopping_signal = self.status == Job.STATUS.STOPPING
+        waiting_signal = all(
+            job.status == Job.STATUS.WAITING for job in self.dependent_jobs)
+        if self.dependent_jobs and not stopping_signal and waiting_signal:
+          self._start_dependent_jobs()
+          return 0
+
       # Log warning and set job status to FAILED to force pipeline conclusion
       crmint_logging.log_message(
         f'Task not found in enqueued_tasks table for task name: {task_name}.',
