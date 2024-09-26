@@ -831,7 +831,7 @@ class Job(extensions.db.Model):
     TaskEnqueued.cleanup_orphaned_tasks()
     name = f"task_{self.pipeline_id}_{str(uuid.uuid4())}"
     added_task = self._add_task_with_name(name)
-    if self._get_tasks_with_name(name):
+    if len(self._get_tasks_with_name(name)) > 0:
       general_settings = {gs.name: gs.value for gs in GeneralSetting.all()}
       task_inst = task.Task(
           name,
