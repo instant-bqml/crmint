@@ -751,7 +751,7 @@ class Job(extensions.db.Model):
 
   def enqueue(self,
               worker_class: str,
-              worker_params: dict[str, Any],
+              worker_params: dict[str, ...],
               delay: int = 0) -> Union[TaskEnqueued, None]:
     if self.status != Job.STATUS.RUNNING:
       return None
