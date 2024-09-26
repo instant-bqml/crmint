@@ -672,10 +672,8 @@ class Job(extensions.db.Model):
         preceding_job_id__in=delete_sc_ids
     ).delete(synchronize_session=False)
 
-  def set_status(self, status: shared.JobStatus):
-    self.update(
-        status=str(status),
-        status_changed_at=datetime.datetime.now(tz=datetime.timezone.utc))
+  def set_status(self, status):
+    self.update(status=status, status_changed_at=datetime.datetime.utcnow())
 
   def get_ready(self) -> bool:
     """Returns True if the job is ready to be started."""
