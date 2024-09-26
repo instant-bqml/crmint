@@ -383,7 +383,7 @@ class TaskEnqueued(extensions.db.Model):
   __repr_attrs__ = ['task_namespace', 'task_name']
 
   id = Column(Integer, primary_key=True, autoincrement=True)
-  task_namespace = Column(String(60), index=True, unique=True)
+  task_namespace = Column(String(60), index=True)
   task_name = Column(String(100), index=True, unique=True)
 
   @classmethod

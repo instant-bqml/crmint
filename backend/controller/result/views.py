@@ -35,40 +35,13 @@ class ResultResource(Resource):
       res = result.Result.from_request(flask.request)
     except message.BadRequestError as e:
       return e.message, e.code
-    
-    job = models.Job.find(res.job_id)
-    if not job:
-      crmint_logging.log_message(
-        f'Job with ID {res.job_id} not found.',
-        log_level='ERROR',
-        worker_class='N/A',
-        pipeline_id='N/A',
-        job_id=res.job_id
-      )
-      job.task_failed(res.task_name)
-      return 'Job not found', 200
-    # Check if the task is still enqueued
-    existing_tasks = job._get_tasks_with_name(res.task_name)
-    if not existing_tasks:
-      crmint_logging.log_message(
-        f'Duplicate or unknown task result received for task name: {res.task_name}.',
-        log_level='WARNING',
-        worker_class='N/A',
-        pipeline_id=job.pipeline_id,
-        job_id=job.id
-      )
-      if res.success:
-        for worker_enqueue_args in res.workers_to_enqueue:
-          job.enqueue(*worker_enqueue_args)
-        job.task_succeeded(res.task_name)
-      else:
-        job.task_failed(res.task_name)
-      return 'Task already processed or unknown.', 200
     if res.success:
-      for worker_enqueue_args in res.workers_to_enqueue:
-        job.enqueue(*worker_enqueue_args)
+      job = models.Job.find(res.job_id)
+      for worker_enqueue_agrs in res.workers_to_enqueue:
+        job.enqueue(*worker_enqueue_agrs)
       job.task_succeeded(res.task_name)
     else:
+      job = models.Job.find(res.job_id)
       job.task_failed(res.task_name)
     return 'OK', 200
 
