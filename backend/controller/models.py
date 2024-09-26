@@ -734,13 +734,13 @@ class Job(extensions.db.Model):
   def _get_task_namespace(self):
     return f'pipeline={self.pipeline_id}_job={self.id}'
 
-  def _add_task_with_name(self, task_name) -> TaskEnqueued:
-    """Keeps track of running tasks."""
+  def _add_task_with_name(self, task_name: str) -> TaskEnqueued:
+    """Keeps track of running tasks with commit confirmation."""
     namespace = self._get_task_namespace()
     return TaskEnqueued.create(task_namespace=namespace, task_name=task_name)
 
   def _get_tasks_with_name(self, task_name: str) -> list[TaskEnqueued]:
-    """Returns list of tasks attached to a given name."""
+    """Returns list of tasks attached to a given name with retries."""
     task_namespace = self._get_task_namespace()
     return TaskEnqueued.where(task_namespace=task_namespace,
                               task_name=task_name).all()
