@@ -489,41 +489,61 @@ class TaskEnqueued(extensions.db.Model):
     return num_old_tasks
   
   @classmethod
-  def check_and_update_pipeline_status(cls):
-    """Checks running pipelines and updates their status if needed."""
-    running_pipelines = Pipeline.query.filter_by(status=Pipeline.STATUS.RUNNING).all()
-    for pipeline in running_pipelines:
-      pattern = f'pipeline={pipeline.id}_%'
-      task_count = cls.query.filter(cls.task_namespace.like(pattern)).count()
-      if task_count == 0:
-        last_status_change = max(job.status_changed_at for job in pipeline.jobs)
-        if last_status_change and (datetime.datetime.utcnow() - last_status_change).total_seconds() > 300:
-          crmint_logging.log_message(
-            f"Pipeline {pipeline.id} is running with no enqueued tasks for "
-            f"over 5 minutes. Setting to IDLE.",
-            log_level="INFO",
-            worker_class="TaskEnqueued",
-            pipeline_id=pipeline.id,
-            job_id=0,
-          )
-          for job in pipeline.jobs:
-            job.set_status(Job.STATUS.IDLE)
-            crmint_logging.log_message(
-              f"Set job {job.id} to IDLE.",
-              log_level="INFO",
-              worker_class="TaskEnqueued",
-              pipeline_id=pipeline.id,
-              job_id=job.id,
-            )
-          pipeline.set_status(Pipeline.STATUS.IDLE)
-          crmint_logging.log_message(
-            f"Set pipeline {pipeline.id} to IDLE.",
-            log_level="INFO",
-            worker_class="TaskEnqueued",
-            pipeline_id=pipeline.id,
-            job_id=0,
-          )
-          pipeline.leaf_job_finished()
+def check_and_update_pipeline_status(cls):
+  """Checks running pipelines and updates their status if needed."""
+  running_pipelines = Pipeline.query.filter_by(status=Pipeline.STATUS.RUNNING).all()
+  
+  # Get pipeline IDs
+  pipeline_ids = [pipeline.id for pipeline in running_pipelines]
+  
+  if not pipeline_ids:
+    crmint_logging.log_message(
+      f"No running pipelines found.",
+      log_level="INFO",
+      worker_class="TaskEnqueued",
+      pipeline_id=0,
+      job_id=0,
+    )
+    return
+
+  # Fetch tasks for all running pipelines
+  tasks = TaskEnqueued.query.filter(
+    TaskEnqueued.task_namespace.in_([f'pipeline={id}_%' for id in pipeline_ids])
+  ).all()
+
+  # Group tasks by pipeline_id
+  pipeline_task_map = {pipeline_id: [] for pipeline_id in pipeline_ids}
+  for task in tasks:
+    pipeline_id = int(re.match(r'pipeline=(\d+)_', task.task_namespace).group(1))
+    pipeline_task_map[pipeline_id].append(task)
+
+  for pipeline in running_pipelines:
+    task_count = len(pipeline_task_map.get(pipeline.id, []))
+    if task_count == 0:
+      last_status_change = max(job.status_changed_at for job in pipeline.jobs)
+      timeout = pipeline.custom_timeout if hasattr(pipeline, 'custom_timeout') else 300
+
+      if last_status_change and (datetime.datetime.utcnow() - last_status_change).total_seconds() > timeout:
+        crmint_logging.log_message(
+          f"Pipeline {pipeline.id} has no enqueued tasks for over {timeout} seconds. Setting to IDLE.",
+          log_level="INFO",
+          worker_class="TaskEnqueued",
+          pipeline_id=pipeline.id,
+          job_id=0,
+        )
+
+        # Batch update job statuses to IDLE
+        Job.query.filter_by(pipeline_id=pipeline.id).update({'status': Job.STATUS.IDLE})
+        pipeline.set_status(Pipeline.STATUS.IDLE)
+
+        crmint_logging.log_message(
+          f"Set pipeline {pipeline.id} and its jobs to IDLE.",
+          log_level="INFO",
+          worker_class="TaskEnqueued",
+          pipeline_id=pipeline.id,
+          job_id=0,
+        )
+        pipeline.leaf_job_finished()
     return
 
   @classmethod
