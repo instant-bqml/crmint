@@ -17,7 +17,6 @@
 import datetime
 import enum
 import numbers
-import random
 import re
 import time
 from typing import Optional, Union
@@ -530,9 +529,11 @@ class TaskEnqueued(extensions.db.Model):
         last_status_change = max(job.status_changed_at for job in pipeline.jobs)
         timeout = pipeline.custom_timeout if hasattr(pipeline, 'custom_timeout') else 300
 
-        if last_status_change and (datetime.datetime.utcnow() - last_status_change).total_seconds() > timeout:
+        if last_status_change and (
+          datetime.datetime.utcnow() - last_status_change).total_seconds() > timeout:
           crmint_logging.log_message(
-            f"Pipeline {pipeline.id} has no enqueued tasks for over {timeout} seconds. Setting to IDLE.",
+            f"Pipeline {pipeline.id} has no enqueued tasks for "
+            f"over {timeout} seconds. Setting to IDLE.",
             log_level="INFO",
             worker_class="TaskEnqueued",
             pipeline_id=pipeline.id,
@@ -540,7 +541,8 @@ class TaskEnqueued(extensions.db.Model):
           )
 
           # Batch update job statuses to IDLE
-          Job.query.filter_by(pipeline_id=pipeline.id).update({'status': Job.STATUS.IDLE})
+          Job.query.filter_by(pipeline_id=pipeline.id).update(
+            {'status': Job.STATUS.IDLE})
           pipeline.set_status(Pipeline.STATUS.IDLE)
 
           crmint_logging.log_message(
@@ -849,7 +851,8 @@ class Job(extensions.db.Model):
 
     crmint_logging.log_message(
       f'Retrieved {len(tasks)} tasks with name: {task_name} '
-      f'in namespace: {task_namespace} from enqueued_tasks table after {attempt + 1} attempt(s).',
+      f'in namespace: {task_namespace} from enqueued_tasks '
+      f'table after {attempt + 1} attempt(s).',
       log_level='DEBUG',
       worker_class=self.worker_class,
       pipeline_id=self.pipeline_id,
@@ -1015,6 +1018,7 @@ class Job(extensions.db.Model):
           pipeline_id=self.pipeline_id,
           job_id=self.id
         )
+        self.pipeline.leaf_job_finished()
         return 0
 
     # Deletes matched tasks
