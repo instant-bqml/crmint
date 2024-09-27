@@ -794,19 +794,34 @@ class Job(extensions.db.Model):
         worker_class=self.worker_class,
         pipeline_id=self.pipeline_id,
         job_id=self.id)
-    # Ignores tasks that are not registered which should be considered an error.
+    # Handles tasks that are not registered which should be considered an error.
     found_tasks = self._get_tasks_with_name(task_name)
     if not found_tasks:
       crmint_logging.log_message(
-        f'Unregistered task for name: {task_name}. Restarting job.',
+        f'Unregistered task for name: {task_name} in pipeline '
+        f'{self.pipeline_id}. Checking job status.',
         log_level='WARNING',
         worker_class=self.worker_class,
         pipeline_id=self.pipeline_id,
         job_id=self.id)
-        
-      # Reset job status to WAITING and start it again
-      self.set_status(Job.STATUS.WAITING)
-      return self.start()
+      if self.status in [Job.STATUS.RUNNING, Job.STATUS.WAITING]:
+        crmint_logging.log_message(
+          f'Job {self.id} is still active in pipeline '
+          f'{self.pipeline_id}. Restarting job.',
+          log_level='INFO',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id)
+        self.set_status(Job.STATUS.WAITING)
+        return self.start()
+      else:
+        crmint_logging.log_message(
+          f'Job {self.id} in pipeline {self.pipeline_id} has already finished '
+          f'with status: {self.status}. Proceeding with pipeline logic.',
+          log_level='INFO',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id)
 
     # Deletes matched tasks
     for task_inst in found_tasks:
