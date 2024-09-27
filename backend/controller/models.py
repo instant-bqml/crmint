@@ -327,6 +327,18 @@ class Pipeline(extensions.db.Model):
   def leaf_job_finished(self) -> None:
     """Determines if the pipeline should be considered finished or failed."""
     if self.has_failed():
+      retrying_jobs = [
+        job for job in self.jobs 
+        if job.retry_count > 0 and job.retry_count < job.MAX_RETRIES]
+      if retrying_jobs:
+        crmint_logging.log_message(
+          f'{len(retrying_jobs)} jobs are being retried. '
+          f'Pipeline continues running.',
+          log_level='INFO',
+          worker_class='N/A',
+          pipeline_id=self.id,
+          job_id=0)
+        return
       self.stop()
       self.set_status(Pipeline.STATUS.FAILED)
       mailers.NotificationMailer().finished_pipeline(self)
@@ -549,12 +561,15 @@ class Job(extensions.db.Model):
   __tablename__ = 'jobs'
   __repr_attrs__ = ['name']
 
+  MAX_RETRIES = 3
+
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
   status = Column(String(50), nullable=False, default='idle')
   status_changed_at = Column(DateTime)
   worker_class = Column(String(255))
   pipeline_id = Column(Integer, ForeignKey('pipelines.id'))
+  retry_count = Column(Integer, default=0)
   params = orm.relationship('Param', backref='job', lazy='joined')
   start_conditions = orm.relationship(
       'StartCondition',
@@ -708,6 +723,8 @@ class Job(extensions.db.Model):
     return enqueued_tasks
 
   def start(self) -> Union[TaskEnqueued, None]:
+    if self.status == Job.STATUS.IDLE:
+      self.retry_count = 0
     if self.status not in Job.STATUS.WAITING:
       # NOTE: Usually means that a single job was started from the UI,
       #       so other jobs are still in an inactive status.
@@ -797,13 +814,26 @@ class Job(extensions.db.Model):
     # Ignores tasks that are not registered which should be considered an error.
     found_tasks = self._get_tasks_with_name(task_name)
     if not found_tasks:
-      crmint_logging.log_message(
-          f'Unregistered task for name: {task_name}',
+      if self.retry_count < self.MAX_RETRIES:
+        self.retry_count += 1
+        crmint_logging.log_message(
+          f'Unregistered task for name: {task_name}. Retrying job (attempt {self.retry_count}/{self.MAX_RETRIES})',
           log_level='WARNING',
           worker_class=self.worker_class,
           pipeline_id=self.pipeline_id,
           job_id=self.id)
-      return self._enqueued_task_count()
+        
+        # Reset job status to WAITING and start it again
+        self.set_status(Job.STATUS.WAITING)
+        return self.start()
+      else:
+        crmint_logging.log_message(
+          f'Max retries ({self.MAX_RETRIES}) reached. Job failed.',
+          log_level='ERROR',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id)
+        new_job_status = Job.STATUS.FAILED
 
     # Deletes matched tasks
     for task_inst in found_tasks:
