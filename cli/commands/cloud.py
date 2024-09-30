@@ -522,7 +522,7 @@ def _update_pubsub_subscription_endpoint(*, subscription_id: str,
             update {subscription_id} \\
             --ack-deadline={ack_deadline}
         """)
-  shared.execute_command('Updating subscription ack_deadline', cmd, debug=debug)
+  shared.execute_command('Updating subscription deadline', cmd, debug=debug)
 
 
 def create_pubsub_subscriptions(stage, debug=False):
@@ -550,7 +550,7 @@ def create_pubsub_subscriptions(stage, debug=False):
           ack_deadline=ack_deadline,
           stage=stage,
           debug=debug)
-      click.echo(textwrap.indent(f'Token and ack_deadline updated for subscription '
+      click.echo(textwrap.indent(f'Token and deadline updated for subscription '
                                  f'{subscription_id}',
                                  _INDENT_PREFIX))
       continue
