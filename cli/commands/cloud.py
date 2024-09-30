@@ -506,6 +506,7 @@ def get_cloud_sql_ip(stage: shared.StageContext,
 def _update_pubsub_subscription_endpoint(*, subscription_id: str,
                                          push_endpoint: str,
                                          service_account: str,
+                                         ack_deadline: int,
                                          stage: shared.StageContext,
                                          debug: bool) -> None:
   cmd = textwrap.dedent(f"""\
@@ -515,6 +516,13 @@ def _update_pubsub_subscription_endpoint(*, subscription_id: str,
             --push-auth-service-account={service_account}
         """)
   shared.execute_command('Updating subscription token', cmd, debug=debug)
+  # Update ack_deadline_seconds if necessary
+  cmd = textwrap.dedent(f"""\
+        {GCLOUD} --project={stage.project_id} pubsub subscriptions \\
+            update {subscription_id} \\
+            --ack-deadline={ack_deadline}
+        """)
+  shared.execute_command('Updating subscription ack_deadline', cmd, debug=debug)
 
 
 def create_pubsub_subscriptions(stage, debug=False):
@@ -531,20 +539,21 @@ def create_pubsub_subscriptions(stage, debug=False):
         project_id=project_id,
         path=subscription['path'],
         token=stage.pubsub_verification_token)
+    ack_deadline = subscription['ack_deadline_seconds']
+    minimum_backoff = subscription['minimum_backoff']
+    min_retry_delay = f'{minimum_backoff}s'
     if subscription_id in existing_subscriptions:
       _update_pubsub_subscription_endpoint(
           subscription_id=subscription_id,
           push_endpoint=push_endpoint,
           service_account=service_account,
+          ack_deadline=ack_deadline,
           stage=stage,
           debug=debug)
-      click.echo(textwrap.indent(f'Token updated for subscription '
+      click.echo(textwrap.indent(f'Token and ack_deadline updated for subscription '
                                  f'{subscription_id}',
                                  _INDENT_PREFIX))
       continue
-    ack_deadline = subscription['ack_deadline_seconds']
-    minimum_backoff = subscription['minimum_backoff']
-    min_retry_delay = f'{minimum_backoff}s'
     cmd = (f'{GCLOUD} --project={project_id} pubsub subscriptions create'
            f' {subscription_id} --topic={topic_id} --topic-project={project_id}'
            f' --ack-deadline={ack_deadline} --min-retry-delay={min_retry_delay}'
