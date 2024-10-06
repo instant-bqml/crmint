@@ -71,6 +71,10 @@ class Pipeline(extensions.db.Model):
   """Model definining a pipeline."""
   __tablename__ = 'pipelines'
   __repr_attrs__ = ['name']
+  __table_args__ = {
+    'mysql_charset': 'utf8mb4',
+    'mysql_collate': 'utf8mb4_unicode_ci'
+  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
@@ -380,6 +384,10 @@ class TaskEnqueued(extensions.db.Model):
   """Model for tracking enqueued tasks that we wait for completion."""
   __tablename__ = 'enqueued_tasks'
   __repr_attrs__ = ['task_namespace', 'task_name']
+  __table_args__ = {
+    'mysql_charset': 'utf8mb4',
+    'mysql_collate': 'utf8mb4_unicode_ci'
+  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   task_namespace = Column(String(60), index=True)
@@ -503,6 +511,10 @@ class StartCondition(extensions.db.Model):
   """Model for a starting condition between two jobs."""
   __tablename__ = 'start_conditions'
   __repr_attrs__ = ['job_id', 'preceding_job_id', 'condition']
+  __table_args__ = {
+    'mysql_charset': 'utf8mb4',
+    'mysql_collate': 'utf8mb4_unicode_ci'
+  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   job_id = Column(Integer, ForeignKey('jobs.id'))
@@ -548,6 +560,10 @@ class Job(extensions.db.Model):
   """Model for a job."""
   __tablename__ = 'jobs'
   __repr_attrs__ = ['name']
+  __table_args__ = {
+    'mysql_charset': 'utf8mb4',
+    'mysql_collate': 'utf8mb4_unicode_ci'
+  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
@@ -914,6 +930,10 @@ class Param(extensions.db.Model):
   """Model encapsulating a parameter value."""
   __tablename__ = 'params'
   __repr_attrs__ = ['pipeline_id', 'job_id', 'name', 'type']
+  __table_args__ = {
+    'mysql_charset': 'utf8mb4',
+    'mysql_collate': 'utf8mb4_unicode_ci'
+  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255), nullable=False)
@@ -1004,6 +1024,10 @@ class Schedule(extensions.db.Model):
   """Model for pipeline' schedule."""
   __tablename__ = 'schedules'
   __repr_attrs__ = ['pipeline_id']
+  __table_args__ = {
+    'mysql_charset': 'utf8mb4',
+    'mysql_collate': 'utf8mb4_unicode_ci'
+  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   pipeline_id = Column(Integer, ForeignKey('pipelines.id'))
@@ -1017,6 +1041,10 @@ class GeneralSetting(extensions.db.Model):
   """Model to store a general setting."""
   __tablename__ = 'general_settings'
   __repr_attrs__ = ['name']
+  __table_args__ = {
+    'mysql_charset': 'utf8mb4',
+    'mysql_collate': 'utf8mb4_unicode_ci'
+  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
@@ -1027,6 +1055,10 @@ class GeneralSetting(extensions.db.Model):
 class Stage(extensions.db.Model):
   """Model for a stage."""
   __tablename__ = 'stages'
+  __table_args__ = {
+    'mysql_charset': 'utf8mb4',
+    'mysql_collate': 'utf8mb4_unicode_ci'
+  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   sid = Column(String(255))
