@@ -105,14 +105,19 @@ function clone_and_checkout_repository() {
 }
 
 function install_command_line() {
-  if [ ! -d .venv ]; then
-    sudo apt-get install -y python3-venv
-    python3 -m venv .venv
+  # Remove existing virtual environment if it exists
+  if [ -d .venv ]; then
+    rm -rf .venv
   fi
 
+  sudo apt-get install -y python3-venv
+  python3 -m venv .venv
+
   . .venv/bin/activate
-  pip install --quiet --upgrade "pip<23.0"
-  pip install --quiet -e cli/
+  pip install --upgrade pip setuptools wheel
+
+  # Proceed to install the cli package
+  pip install -e cli/
 }
 
 function add_wrapper_function_to_bashrc() {
