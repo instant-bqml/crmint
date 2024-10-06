@@ -175,13 +175,13 @@ def before_hook(stage: StageContext) -> StageContext:
 
   stage.cloudsql_dir = '/tmp/cloudsql'
 
-  stage.cloud_db_uri = 'mysql+mysqlconnector://{}:{}@/{}?unix_socket=/cloudsql/{}'.format(
+  stage.cloud_db_uri = 'mysql+mysqlconnector://{}:{}@/{}?unix_socket=/cloudsql/{}&charset=utf8mb4&collation=utf8mb4_unicode_ci'.format(
       stage.database_username,
       stage.database_password,
       stage.database_name,
       stage.db_instance_conn_name)
 
-  stage.local_db_uri = 'mysql+mysqlconnector://{}:{}@/{}?unix_socket={}/{}'.format(
+  stage.local_db_uri = 'mysql+mysqlconnector://{}:{}@/{}?unix_socket={}/{}&charset=utf8mb4&collation=utf8mb4_unicode_ci'.format(
       stage.database_username,
       stage.database_password,
       stage.database_name,
