@@ -135,7 +135,7 @@ markupsafe==2.1.5
     #   werkzeug
 msgpack==1.1.0
     # via cachecontrol
-numpy==2.1.2
+numpy==2.0.0
     # via shapely
 opentelemetry-api==1.27.0
     # via
