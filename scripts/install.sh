@@ -173,7 +173,7 @@ EOF
 function run_command_line() {
   if [[ ! -z "$COMMAND" ]]; then
     hash -r
-    eval "${COMMAND} ${COMMAND_OPTIONS}" &> /dev/null
+    eval "${COMMAND} ${COMMAND_OPTIONS}"
   else
     echo -e "\nSuccessfully installed the CRMint command-line."
     echo "You can use it now by typing: crmint --help"
