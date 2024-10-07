@@ -109,6 +109,7 @@ function clone_and_checkout_repository() {
 
 # Function to install the command line using Python 3.9
 function install_command_line() {
+  mkdir -p ~/.cloudshell
   touch ~/.cloudshell/no-apt-get-warning
   
   # Remove existing virtual environment if it exists
@@ -129,6 +130,7 @@ function install_command_line() {
     echo "Python 3.9 installation failed, exiting."
     exit 1
   fi
+  echo "Python 3.9 version: $(python3.9 --version)"
 
   # Create virtual environment using Python 3.9
   echo "Creating virtual environment with Python 3.9..."
