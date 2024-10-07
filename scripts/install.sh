@@ -16,6 +16,7 @@
 
 set -e
 
+# Function to ensure gcloud authentication
 function ensure_gcloud_auth() {
   # Get the list of accounts and select the first one if multiple accounts exist
   ACTIVE_ACCOUNT=$(gcloud auth list --format="value(account)" | head -n 1)
@@ -33,6 +34,7 @@ function ensure_gcloud_auth() {
   fi
 }
 
+# Function to ensure gcloud project is set
 function ensure_gcloud_project_set() {
   CURRENT_PROJECT=$(gcloud config get-value project)
 
@@ -51,7 +53,7 @@ function ensure_gcloud_project_set() {
   fi
 }
 
-
+# Function to parse command line arguments
 function parse_command_line_arguments() {
   TARGET_BRANCH=$1
   RUN_COMMAND=$2
@@ -78,6 +80,7 @@ function parse_command_line_arguments() {
   fi
 }
 
+# Function to clone and checkout repository
 function clone_and_checkout_repository() {
   TARGET_REPO_URL="https://github.com/instant-bqml/crmint.git"
   TARGET_REPO_NAME="crmint"
@@ -104,22 +107,43 @@ function clone_and_checkout_repository() {
   fi
 }
 
+# Function to install the command line using Python 3.9
 function install_command_line() {
   # Remove existing virtual environment if it exists
   if [ -d .venv ]; then
     rm -rf .venv
   fi
 
-  sudo apt-get install -y python3-venv
-  python3 -m venv .venv
+  # Install Python 3.9 and its venv module
+  echo "Installing Python 3.9 and necessary packages..."
+  sudo apt-get update
+  sudo apt-get install -y software-properties-common
+  sudo add-apt-repository ppa:deadsnakes/ppa -y
+  sudo apt-get update
+  sudo apt-get install -y python3.9 python3.9-venv python3.9-dev
 
-  . .venv/bin/activate
+  # Verify Python 3.9 installation
+  echo "Verifying Python 3.9 installation..."
+  python3.9 --version
+
+  # Create virtual environment using Python 3.9
+  echo "Creating virtual environment with Python 3.9..."
+  python3.9 -m venv .venv
+
+  # Activate the virtual environment
+  echo "Activating virtual environment..."
+  source .venv/bin/activate
+
+  # Upgrade pip, setuptools, and wheel
+  echo "Upgrading pip, setuptools, and wheel..."
   pip install --upgrade pip setuptools wheel
 
   # Proceed to install the cli package
+  echo "Installing CRMint CLI package..."
   pip install -e cli/
 }
 
+# Function to add wrapper function to .bashrc
 function add_wrapper_function_to_bashrc() {
   echo -e "\\nAdding a bash function to your $HOME/.bashrc file."
 
@@ -131,14 +155,18 @@ function add_wrapper_function_to_bashrc() {
 function crmint {
   CURRENT_DIR=\$(pwd)
   cd \$HOME/crmint
-  . .venv/bin/activate
-  command crmint \$@ || return
+  source .venv/bin/activate
+  command crmint "\$@" || return
   deactivate
   cd "\$CURRENT_DIR"
 }
 EOF
+
+  # Source .bashrc to apply changes in the current session
+  source $HOME/.bashrc
 }
 
+# Function to run the specified command
 function run_command_line() {
   if [[ ! -z "$COMMAND" ]]; then
     hash -r
