@@ -100,15 +100,17 @@ function clone_and_checkout_repository() {
     sudo git clean -fdx || echo "Warning: Some files could not be removed. You may need to manually remove files with elevated permissions."
     git checkout $TARGET_BRANCH
   else
-    git clone "$TARGET_REPO_URL" "$CLONE_DIR"
+    git clone "$TARGET_REPO_URL" "$CLONE_DIR" --quiet
     echo "Cloned $TARGET_REPO_NAME repository to your home directory: $HOME."
     cd "$CLONE_DIR"
-    git checkout $TARGET_BRANCH
+    git checkout $TARGET_BRANCH --quiet
   fi
 }
 
 # Function to install the command line using Python 3.9
 function install_command_line() {
+  touch ~/.cloudshell/no-apt-get-warning
+  
   # Remove existing virtual environment if it exists
   if [ -d .venv ]; then
     rm -rf .venv
@@ -116,15 +118,21 @@ function install_command_line() {
 
   # Install Python 3.9 and its venv module
   echo "Installing Python 3.9 and necessary packages..."
-  sudo apt-get update
-  sudo apt-get install -y software-properties-common
-  sudo add-apt-repository ppa:deadsnakes/ppa -y
-  sudo apt-get update
-  sudo apt-get install -y python3.9 python3.9-venv python3.9-dev
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq software-properties-common
+  sudo add-apt-repository ppa:deadsnakes/ppa -y &> /dev/null
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq python3.9 python3.9-venv python3.9-dev
+
+  # Verify Python 3.9 installation
+  if ! command -v python3.9 &> /dev/null; then
+    echo "Python 3.9 installation failed, exiting."
+    exit 1
+  fi
 
   # Create virtual environment using Python 3.9
   echo "Creating virtual environment with Python 3.9..."
-  python3.9 -m venv .venv
+  python3.9 -m venv .venv &> /dev/null
 
   # Activate the virtual environment
   echo "Activating virtual environment..."
@@ -132,11 +140,11 @@ function install_command_line() {
 
   # Upgrade pip, setuptools, and wheel
   echo "Upgrading pip, setuptools, and wheel..."
-  pip install --upgrade pip setuptools wheel
+  pip install --upgrade pip setuptools wheel &> /dev/null
 
   # Proceed to install the cli package
   echo "Installing CRMint CLI package..."
-  pip install -e cli/
+  pip install -e cli/ &> /dev/null
 }
 
 # Function to add wrapper function to .bashrc
@@ -163,7 +171,7 @@ EOF
 function run_command_line() {
   if [[ ! -z "$COMMAND" ]]; then
     hash -r
-    eval "${COMMAND} ${COMMAND_OPTIONS}"
+    eval "${COMMAND} ${COMMAND_OPTIONS}" &> /dev/null
   else
     echo -e "\nSuccessfully installed the CRMint command-line."
     echo "You can use it now by typing: crmint --help"
