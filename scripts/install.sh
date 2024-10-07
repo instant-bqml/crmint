@@ -146,7 +146,7 @@ function install_command_line() {
 
   # Proceed to install the cli package
   echo "Installing CRMint CLI package..."
-  pip install -e cli/ &> /dev/null
+  pip install -e cli/
 }
 
 # Function to add wrapper function to .bashrc
