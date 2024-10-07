@@ -134,7 +134,7 @@ function install_command_line() {
 
   # Create virtual environment using Python 3.9
   echo "Creating virtual environment with Python 3.9..."
-  python3.9 -m venv .venv &> /dev/null
+  python3.9 -m venv .venv
 
   # Activate the virtual environment
   echo "Activating virtual environment..."
@@ -146,7 +146,7 @@ function install_command_line() {
 
   # Proceed to install the cli package
   echo "Installing CRMint CLI package..."
-  pip install -e cli/
+  pip install --quiet -e cli/
 }
 
 # Function to add wrapper function to .bashrc
