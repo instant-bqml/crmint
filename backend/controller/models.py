@@ -71,10 +71,6 @@ class Pipeline(extensions.db.Model):
   """Model definining a pipeline."""
   __tablename__ = 'pipelines'
   __repr_attrs__ = ['name']
-  __table_args__ = {
-    'mysql_charset': 'utf8mb4',
-    'mysql_collate': 'utf8mb4_unicode_ci'
-  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
@@ -384,10 +380,6 @@ class TaskEnqueued(extensions.db.Model):
   """Model for tracking enqueued tasks that we wait for completion."""
   __tablename__ = 'enqueued_tasks'
   __repr_attrs__ = ['task_namespace', 'task_name']
-  __table_args__ = {
-    'mysql_charset': 'utf8mb4',
-    'mysql_collate': 'utf8mb4_unicode_ci'
-  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   task_namespace = Column(String(60), index=True)
@@ -406,93 +398,54 @@ class TaskEnqueued(extensions.db.Model):
   def cleanup_orphaned_tasks(cls, threshold_minutes: int = 60):
     """Deletes tasks older than the specified threshold in minutes."""
     threshold_time = datetime.datetime.utcnow() - datetime.timedelta(
-        minutes=threshold_minutes
+      minutes=threshold_minutes
     )
+    # Query for old tasks
     old_tasks = cls.query.filter(cls.created_at < threshold_time).all()
     num_old_tasks = len(old_tasks)
     if num_old_tasks > 0:
       crmint_logging.log_message(
         f"Found {num_old_tasks} old tasks older than {threshold_minutes} "
-        f"minutes. Flushing them now.",
-        log_level="INFO",
+        f"minutes. Deleting them now.",
+        log_level="DEBUG",
         worker_class="TaskEnqueued",
         pipeline_id=0,
-        job_id=0,
-      )
+        job_id=0)
       for task in old_tasks:
-        crmint_logging.log_message(
-          f"Flushing task: {task.task_name}",
-          log_level="INFO",
-          worker_class="TaskEnqueued",
-          pipeline_id=0,
-          job_id=0,
-        )
         # Parse task_namespace to get pipeline_id and job_id
         match = re.match(r'pipeline=(\d+)_job=(\d+)', task.task_namespace)
         if match:
           pipeline_id = int(match.group(1))
           job_id = int(match.group(2))
-          # Load Job and Pipeline
-          job = Job.find(job_id)
-          pipeline = Pipeline.find(pipeline_id)
-          # Set job and pipeline to IDLE.
-          if job:
-            job.set_status(Job.STATUS.IDLE)
-            crmint_logging.log_message(
-              f"Set job {job_id} to IDLE due to old task.",
-              log_level="INFO",
-              worker_class="TaskEnqueued",
-              pipeline_id=pipeline_id,
-              job_id=job_id,
-            )
-          if pipeline:
-            # Set all jobs in the pipeline to IDLE.
-            for p_job in pipeline.jobs:
-              p_job.set_status(Job.STATUS.IDLE)
-              crmint_logging.log_message(
-                f"Set job {p_job.id} to IDLE.",
-                log_level="INFO",
-                worker_class="TaskEnqueued",
-                pipeline_id=pipeline_id,
-                job_id=p_job.id,
-              )
-            pipeline.set_status(Pipeline.STATUS.IDLE)
-            crmint_logging.log_message(
-              f"Set pipeline {pipeline_id} to IDLE.",
-              log_level="INFO",
-              worker_class="TaskEnqueued",
-              pipeline_id=pipeline_id,
-              job_id=0,
-            )
-            # Call leaf_job_finished to handle pipeline failure logic
-            pipeline.leaf_job_finished()
+          crmint_logging.log_message(
+            f"Deleting old task: {task.task_name} "
+            f"(Pipeline ID: {pipeline_id}, Job ID: {job_id})",
+            log_level="DEBUG",
+            worker_class="TaskEnqueued",
+            pipeline_id=pipeline_id,
+            job_id=job_id)
         else:
           crmint_logging.log_message(
-            f"Could not parse task_namespace: {task.task_namespace}",
-            log_level="WARNING",
+            f"Deleting old task with unparseable namespace: {task.task_namespace}",
+            log_level="DEBUG",
             worker_class="TaskEnqueued",
             pipeline_id=0,
-            job_id=0,
-          )
-      # Delete old tasks
-      num_deleted = cls.query.filter(cls.created_at < threshold_time).delete(
-        synchronize_session=False
-      )
+            job_id=0)
+        # Delete the task
+        task.delete()
       crmint_logging.log_message(
-        f"Flushed {num_deleted} old tasks.",
-        log_level="INFO",
+        f"Deleted {num_old_tasks} old tasks.",
+        log_level="DEBUG",
         worker_class="TaskEnqueued",
         pipeline_id=0,
-        job_id=0,
-      )
+        job_id=0)
     else:
       crmint_logging.log_message(
         f"No old tasks found older than {threshold_minutes} minutes.",
-        log_level="INFO",
+        log_level="DEBUG",
         worker_class="TaskEnqueued",
         pipeline_id=0,
-        job_id=0,
-      )
+        job_id=0)
     return num_old_tasks
 
   @classmethod
@@ -511,10 +464,6 @@ class StartCondition(extensions.db.Model):
   """Model for a starting condition between two jobs."""
   __tablename__ = 'start_conditions'
   __repr_attrs__ = ['job_id', 'preceding_job_id', 'condition']
-  __table_args__ = {
-    'mysql_charset': 'utf8mb4',
-    'mysql_collate': 'utf8mb4_unicode_ci'
-  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   job_id = Column(Integer, ForeignKey('jobs.id'))
@@ -560,10 +509,6 @@ class Job(extensions.db.Model):
   """Model for a job."""
   __tablename__ = 'jobs'
   __repr_attrs__ = ['name']
-  __table_args__ = {
-    'mysql_charset': 'utf8mb4',
-    'mysql_collate': 'utf8mb4_unicode_ci'
-  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
@@ -878,6 +823,11 @@ class Job(extensions.db.Model):
     if self.pipeline.status == Pipeline.STATUS.FAILED:
       return 0
 
+    # Remove any orphaned tasks that may hold up pipeline/job execution.
+    # Defaults to tasks older than 60 minutes which should never happen
+    # given the logic behind the BQWaiter and VertexAIWaiter.
+    TaskEnqueued.cleanup_orphaned_tasks()
+
     # We can safely start children jobs, because of our above concurrent lock.
     # NOTE: Only if stopping has not been triggered.
     # NOTE: And only if other jobs are still waiting.
@@ -930,10 +880,6 @@ class Param(extensions.db.Model):
   """Model encapsulating a parameter value."""
   __tablename__ = 'params'
   __repr_attrs__ = ['pipeline_id', 'job_id', 'name', 'type']
-  __table_args__ = {
-    'mysql_charset': 'utf8mb4',
-    'mysql_collate': 'utf8mb4_unicode_ci'
-  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255), nullable=False)
@@ -1024,10 +970,6 @@ class Schedule(extensions.db.Model):
   """Model for pipeline' schedule."""
   __tablename__ = 'schedules'
   __repr_attrs__ = ['pipeline_id']
-  __table_args__ = {
-    'mysql_charset': 'utf8mb4',
-    'mysql_collate': 'utf8mb4_unicode_ci'
-  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   pipeline_id = Column(Integer, ForeignKey('pipelines.id'))
@@ -1041,10 +983,6 @@ class GeneralSetting(extensions.db.Model):
   """Model to store a general setting."""
   __tablename__ = 'general_settings'
   __repr_attrs__ = ['name']
-  __table_args__ = {
-    'mysql_charset': 'utf8mb4',
-    'mysql_collate': 'utf8mb4_unicode_ci'
-  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
@@ -1055,10 +993,6 @@ class GeneralSetting(extensions.db.Model):
 class Stage(extensions.db.Model):
   """Model for a stage."""
   __tablename__ = 'stages'
-  __table_args__ = {
-    'mysql_charset': 'utf8mb4',
-    'mysql_collate': 'utf8mb4_unicode_ci'
-  }
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   sid = Column(String(255))
