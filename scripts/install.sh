@@ -16,6 +16,9 @@
 
 set -e
 
+mkdir -p ~/.cloudshell
+touch ~/.cloudshell/no-apt-get-warning
+
 # Function to ensure gcloud authentication
 function ensure_gcloud_auth() {
   # Get the list of accounts and select the first one if multiple accounts exist
@@ -109,9 +112,6 @@ function clone_and_checkout_repository() {
 
 # Function to install the command line using Python 3.9
 function install_command_line() {
-  mkdir -p ~/.cloudshell
-  touch ~/.cloudshell/no-apt-get-warning
-  
   # Remove existing virtual environment if it exists
   if [ -d .venv ]; then
     rm -rf .venv
