@@ -122,17 +122,13 @@ function install_command_line() {
   sudo apt-get update
   sudo apt-get install -y python3.9 python3.9-venv python3.9-dev
 
-  # Verify Python 3.9 installation
-  echo "Verifying Python 3.9 installation..."
-  python3.9 --version
-
   # Create virtual environment using Python 3.9
   echo "Creating virtual environment with Python 3.9..."
   python3.9 -m venv .venv
 
   # Activate the virtual environment
   echo "Activating virtual environment..."
-  source .venv/bin/activate
+  . .venv/bin/activate
 
   # Upgrade pip, setuptools, and wheel
   echo "Upgrading pip, setuptools, and wheel..."
