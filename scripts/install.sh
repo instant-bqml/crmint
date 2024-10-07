@@ -155,15 +155,12 @@ function add_wrapper_function_to_bashrc() {
 function crmint {
   CURRENT_DIR=\$(pwd)
   cd \$HOME/crmint
-  source .venv/bin/activate
-  command crmint "\$@" || return
+  . .venv/bin/activate
+  command crmint \$@ || return
   deactivate
   cd "\$CURRENT_DIR"
 }
 EOF
-
-  # Source .bashrc to apply changes in the current session
-  source $HOME/.bashrc
 }
 
 # Function to run the specified command
