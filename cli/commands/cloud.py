@@ -295,7 +295,7 @@ def check_billing_enabled(stage: shared.StageContext,
 
 def check_sql_instance_policy_restrictions(stage: shared.StageContext,
                                            debug: bool = False) -> bool:
-  """Returns True if no organization policies restrict the use of public IPs for Cloud SQL.
+  """Returns True if no project-level or inherited policies restrict the use of public IPs for Cloud SQL.
 
   Args:
     stage: Stage context.
@@ -311,23 +311,32 @@ def check_sql_instance_policy_restrictions(stage: shared.StageContext,
     cmd = textwrap.dedent(f"""\
         {GCLOUD} resource-manager org-policies describe {policy} \\
             --project={project_id} \\
-            --format="value(booleanPolicy.enforced)"
+            --effective \\
+            --format="json"
     """)
     _, out, _ = shared.execute_command(
-        f'Checking organization policy {policy}',
-        cmd,
-        debug=debug,
-        debug_uses_std_out=False)
+        f'Checking effective policy {policy}', cmd, debug=debug, debug_uses_std_out=False)
 
-    if out.strip().lower() == 'true':
+    try:
+      policy_data = json.loads(out)
+      enforced = policy_data.get("booleanPolicy", {}).get("enforced", False)
+
+      if enforced:
+        click.secho(
+            textwrap.indent(
+                f'Policy "{policy}" is enforced. Cloud SQL instances with public IPs are restricted.',
+                _INDENT_PREFIX),
+            fg='red', bold=True
+        )
+        return False
+    except json.JSONDecodeError:
       click.secho(
           textwrap.indent(
-              f'Organization policy "{policy}" is enforced. '
-              'Cloud SQL instances with public IPs are restricted.',
+              f'Failed to parse policy {policy} or the policy is not defined for the project. '
+              f'Assuming no enforcement at project level. Check organization-level policies manually if necessary.',
               _INDENT_PREFIX),
-          fg='red', bold=True
+          fg='yellow'
       )
-      return False
   return True
 
 
@@ -1228,8 +1237,8 @@ def checklist(stage_path: Union[None, str], debug: bool) -> None:
 
   if not check_sql_instance_policy_restrictions(stage, debug=debug):
     click.secho(textwrap.indent(textwrap.dedent("""\
-        Organization policies restrict the use of public IPs for Cloud SQL instances.
-        Consider CRMint on Cloud Run or contact your administrator to modify these policies.
+        Cloud SQL policy restrictions prevent the use of public IPs. Please ensure your Cloud 
+        SQL instance uses private IPs or adjust the policy.
         """), _INDENT_PREFIX), fg='red', bold=True)
     sys.exit(1)
 
