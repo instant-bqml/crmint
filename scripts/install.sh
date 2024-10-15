@@ -146,7 +146,7 @@ function install_command_line() {
 
   # Proceed to install the cli package
   echo "Installing CRMint CLI package..."
-  pip install --quiet -e cli/
+  pip install --quiet --config-settings editable_mode=compat -e cli/
 }
 
 # Function to add wrapper function to .bashrc
