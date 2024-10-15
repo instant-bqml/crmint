@@ -301,7 +301,7 @@ def check_sql_instance_policy_restrictions(stage: shared.StageContext,
     stage: Stage context.
     debug: Enables the debug mode on system calls.
   """
-  project_id = stage.database_project
+  project_id = stage.project_id
   policies_to_check = [
       'constraints/sql.restrictAuthorizedNetworks',
       'constraints/sql.restrictPublicIp',
@@ -322,22 +322,10 @@ def check_sql_instance_policy_restrictions(stage: shared.StageContext,
       enforced = policy_data.get("booleanPolicy", {}).get("enforced", False)
 
       if enforced:
-        click.secho(
-            textwrap.indent(
-                f'Policy "{policy}" is enforced. Cloud SQL instances with public IPs are restricted.',
-                _INDENT_PREFIX),
-            fg='red', bold=True
-        )
-        return False
+        return False, f'Policy "{policy}" is enforced. Cloud SQL instances with public IPs are restricted.'
     except json.JSONDecodeError:
-      click.secho(
-          textwrap.indent(
-              f'Failed to parse policy {policy} or the policy is not defined for the project. '
-              f'Assuming no enforcement at project level. Check organization-level policies manually if necessary.',
-              _INDENT_PREFIX),
-          fg='yellow'
-      )
-  return True
+      return False, f'Failed to parse policy {policy}. Check organization-level policies manually.'
+  return True, ''
 
 
 def _check_if_appengine_instance_exists(stage, debug=False):
@@ -1235,11 +1223,10 @@ def checklist(stage_path: Union[None, str], debug: bool) -> None:
         """), _INDENT_PREFIX), fg='red', bold=True)
     sys.exit(1)
 
-  if not check_sql_instance_policy_restrictions(stage, debug=debug):
-    click.secho(textwrap.indent(textwrap.dedent("""\
-        Cloud SQL policy restrictions prevent the use of public IPs. Please ensure your Cloud 
-        SQL instance uses private IPs or adjust the policy.
-        """), _INDENT_PREFIX), fg='red', bold=True)
+  click.echo(click.style('---> Checking Cloud SQL policies', fg='cyan', bold=False))
+  success, message = check_sql_instance_policy_restrictions(stage, debug=debug)
+  if not success:
+    click.secho(textwrap.indent(message, _INDENT_PREFIX), fg='red', bold=True)
     sys.exit(1)
 
   click.echo(click.style('Done.', fg='magenta', bold=True))
