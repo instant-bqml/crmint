@@ -103,10 +103,10 @@ function clone_and_checkout_repository() {
     sudo git clean -fdx || echo "Warning: Some files could not be removed. You may need to manually remove files with elevated permissions."
     git checkout $TARGET_BRANCH
   else
-    git clone "$TARGET_REPO_URL" "$CLONE_DIR" --quiet
+    git clone "$TARGET_REPO_URL" "$CLONE_DIR"
     echo "Cloned $TARGET_REPO_NAME repository to your home directory: $HOME."
     cd "$CLONE_DIR"
-    git checkout $TARGET_BRANCH --quiet
+    git checkout $TARGET_BRANCH
   fi
 }
 
@@ -119,8 +119,8 @@ function install_command_line() {
 
   # Install Python 3.9 and its venv module
   echo "Installing Python 3.9 and necessary packages..."
-  sudo apt-get update -qq
-  sudo apt-get install -y -qq software-properties-common
+  sudo apt-get update
+  sudo apt-get install -y software-properties-common
   sudo add-apt-repository ppa:deadsnakes/ppa -y &> /dev/null
   sudo apt-get update -qq
   sudo apt-get install -y -qq python3.9 python3.9-venv python3.9-dev
