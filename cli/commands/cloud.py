@@ -293,6 +293,44 @@ def check_billing_enabled(stage: shared.StageContext,
   return out.strip().lower() == 'true'
 
 
+def check_sql_instance_policy_restrictions(stage: shared.StageContext,
+                                           debug: bool = False) -> bool:
+  """Returns True if no organization policies restrict the use of public IPs for Cloud SQL.
+
+  Args:
+    stage: Stage context.
+    debug: Enables the debug mode on system calls.
+  """
+  project_id = stage.database_project
+  policies_to_check = [
+      'constraints/sql.restrictAuthorizedNetworks',
+      'constraints/sql.restrictPublicIp',
+  ]
+
+  for policy in policies_to_check:
+    cmd = textwrap.dedent(f"""\
+        {GCLOUD} resource-manager org-policies describe {policy} \\
+            --project={project_id} \\
+            --format="value(booleanPolicy.enforced)"
+    """)
+    _, out, _ = shared.execute_command(
+        f'Checking organization policy {policy}',
+        cmd,
+        debug=debug,
+        debug_uses_std_out=False)
+
+    if out.strip().lower() == 'true':
+      click.secho(
+          textwrap.indent(
+              f'Organization policy "{policy}" is enforced. '
+              'Cloud SQL instances with public IPs are restricted.',
+              _INDENT_PREFIX),
+          fg='red', bold=True
+      )
+      return False
+  return True
+
+
 def _check_if_appengine_instance_exists(stage, debug=False):
   project_id = stage.project_id
   cmd = (f'{GCLOUD} app describe --verbosity critical --project={project_id}'
@@ -1185,6 +1223,13 @@ def checklist(stage_path: Union[None, str], debug: bool) -> None:
     click.secho(textwrap.indent(textwrap.dedent("""\
         Please enable billing before deploying CRMint:
         https://cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project
+        """), _INDENT_PREFIX), fg='red', bold=True)
+    sys.exit(1)
+
+  if not check_sql_instance_policy_restrictions(stage, debug=debug):
+    click.secho(textwrap.indent(textwrap.dedent("""\
+        Organization policies restrict the use of public IPs for Cloud SQL instances.
+        Consider CRMint on Cloud Run or contact your administrator to modify these policies.
         """), _INDENT_PREFIX), fg='red', bold=True)
     sys.exit(1)
 
