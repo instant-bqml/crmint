@@ -307,7 +307,7 @@ def check_sql_instance_policy_restrictions(stage: shared.StageContext,
       'constraints/sql.restrictPublicIp',
   ]
 
-  for policy in policies_to_check:
+  for idx, policy in enumerate(policies_to_check):
     cmd = textwrap.dedent(f"""\
         {GCLOUD} resource-manager org-policies describe {policy} \\
             --project={project_id} \\
@@ -315,7 +315,10 @@ def check_sql_instance_policy_restrictions(stage: shared.StageContext,
             --format="json"
     """)
     _, out, _ = shared.execute_command(
-        f'Checking effective policy {policy}', cmd, debug=debug, debug_uses_std_out=False)
+        f'Checking Cloud SQL policy ({idx + 1}/{len(policies_to_check)})',
+        cmd,
+        debug=debug,
+        debug_uses_std_out=False)
 
     try:
       policy_data = json.loads(out)
@@ -1223,7 +1226,6 @@ def checklist(stage_path: Union[None, str], debug: bool) -> None:
         """), _INDENT_PREFIX), fg='red', bold=True)
     sys.exit(1)
 
-  click.echo(click.style('---> Checking Cloud SQL policies', fg='cyan', bold=False))
   success, message = check_sql_instance_policy_restrictions(stage, debug=debug)
   if not success:
     click.secho(textwrap.indent(message, _INDENT_PREFIX), fg='red', bold=True)
