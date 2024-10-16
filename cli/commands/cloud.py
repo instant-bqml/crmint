@@ -295,7 +295,8 @@ def check_billing_enabled(stage: shared.StageContext,
 
 def check_sql_instance_policy_restrictions(stage: shared.StageContext,
                                            debug: bool = False) -> bool:
-  """Returns True if no project-level or inherited policies restrict the use of public IPs for Cloud SQL.
+  """Returns True if no project-level or inherited policies restrict the use 
+  of public IPs for Cloud SQL.
 
   Args:
     stage: Stage context.
@@ -325,9 +326,11 @@ def check_sql_instance_policy_restrictions(stage: shared.StageContext,
       enforced = policy_data.get("booleanPolicy", {}).get("enforced", False)
 
       if enforced:
-        return False, f'Policy "{policy}" is enforced. Cloud SQL instances with public IPs are restricted.'
+        return False, (f'Policy "{policy}" is enforced. Cloud SQL instances '
+                       'with public IPs are restricted.')
     except json.JSONDecodeError:
-      return False, f'Failed to parse policy {policy}. Check organization-level policies manually.'
+      return False, (f'Failed to parse policy {policy}. Check organization-'
+                     'level policies manually.')
   return True, ''
 
 
