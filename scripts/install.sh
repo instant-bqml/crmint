@@ -122,7 +122,7 @@ function install_command_line() {
   sudo apt-get update
   sudo apt-get install -y software-properties-common
   sudo add-apt-repository ppa:deadsnakes/ppa -y &> /dev/null
-  sudo apt-get update
+  sudo apt-get update -qq
   sudo apt-get install -y -qq python3.9 python3.9-venv python3.9-dev
 
   # Verify Python 3.9 installation
