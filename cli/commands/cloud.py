@@ -931,26 +931,31 @@ def deploy_frontend(stage, debug=False):
 
   # Prepares the deployment.
   cmds = [
-      # CloudShell node version is too old for Angular, let's update it.
+      # Install Node.js 20.5.0
       textwrap.dedent("""\
-          source /usr/local/nvm/nvm.sh \\
-          && nvm install 20.5.0
-          """),
+        source /usr/local/nvm/nvm.sh \\
+        && nvm install 20.5.0
+        """),
+      # Use Node.js 20.5.0 and update npm to latest
       textwrap.dedent("""\
-          source /usr/local/nvm/nvm.sh \\
-          && nvm use 20.5.0 \\
-          && npm install -g npm@latest
-          """),
+        source /usr/local/nvm/nvm.sh \\
+        && nvm use 20.5.0 \\
+        && npm install -g npm@latest
+        """),
+      # Clean and install dependencies
       textwrap.dedent("""\
-          source /usr/local/nvm/nvm.sh \\
-          && nvm use 20.5.0 \\
-          && npm install
-          """),
+        source /usr/local/nvm/nvm.sh \\
+        && nvm use 20.5.0 \\
+        && rm -rf node_modules package-lock.json \\
+        && npm cache clean --force \\
+        && npm install
+        """),
+      # Build the frontend
       textwrap.dedent("""\
-          source /usr/local/nvm/nvm.sh \\
-          && nvm use 20.5.0 \\
-          && npm run build -- -c production
-          """),
+        source /usr/local/nvm/nvm.sh \\
+        && nvm use 20.5.0 \\
+        && npm run build -- -c production
+        """),
   ]
   total = len(cmds)
   for idx, cmd in enumerate(cmds):
