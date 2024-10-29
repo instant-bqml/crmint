@@ -2,5 +2,5 @@
 google-analytics-admin
 google-api-python-client
 google-cloud-aiplatform
-google-cloud-bigquery
 google-cloud-storage
+numpy>=1.21,<2.0
