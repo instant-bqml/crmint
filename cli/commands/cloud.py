@@ -954,7 +954,7 @@ def deploy_frontend(stage, debug=False):
     textwrap.dedent("""\
       source /usr/local/nvm/nvm.sh \\
       && nvm use 18.18.0 \\
-      && npx ng build -- -c production
+      && npm run build -- -c production
       """),
   ]
   total = len(cmds)
