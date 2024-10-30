@@ -54,7 +54,7 @@ $crmi-app-theme: mat.define-light-theme((
     warn: $crmi-app-warn,
   ),
   typography: mat.define-typography-config(),  // Default typography config
-  density: 0.5,  // Adjust density as needed
+  density: 0,  // Adjust density as needed
 ));
 
 // Include the default theme styles with the correct theme structure

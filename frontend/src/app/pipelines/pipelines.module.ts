@@ -19,7 +19,7 @@ import { RouterModule } from '@angular/router';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatPaginatorModule } from '@angular/material/paginator';
 
-import { ClickOutsideModule } from 'ng-click-outside';
+import { ClickOutsideModule } from 'ngx-click-outside';
 import { PrettycronPipe } from 'app/pipes/prettycron.pipe';
 
 import { PipelinesComponent } from './pipelines.component';
