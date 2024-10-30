@@ -47,9 +47,19 @@ $crmi-primary: (
 $crmi-app-primary: mat.define-palette($crmi-primary, 700);
 $crmi-app-accent: mat.define-palette($crmi-primary, 500);
 $crmi-app-warn: mat.define-palette(mat.$orange-palette, 800);
-$crmi-app-theme: mat.define-light-theme($crmi-app-primary, $crmi-app-accent, $crmi-app-warn);
 
-// Include the default theme styles.
+// Define the theme with color, typography, and density keys
+$crmi-app-theme: mat.define-light-theme((
+  color: (
+    primary: $crmi-app-primary,
+    accent: $crmi-app-accent,
+    warn: $crmi-app-warn,
+  ),
+  typography: mat.define-typography-config(),  // Default typography config
+  density: 0.5,  // Adjust density as needed
+));
+
+// Include the default theme styles with the correct theme structure
 @include mat.all-component-themes($crmi-app-theme);
 
 // SIZES
