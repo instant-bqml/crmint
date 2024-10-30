@@ -2,7 +2,7 @@
 @use '@angular/material' as mat;
 
 @import 'codemirror/lib/codemirror';
-@import '~codemirror/theme/material';
+@import 'codemirror/theme/material';
 
 // Include the common styles for Angular Material.
 @include mat.core();
