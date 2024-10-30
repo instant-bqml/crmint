@@ -38,7 +38,13 @@
             "buildOptimizer": false,
             "sourceMap": true,
             "optimization": false,
-            "namedChunks": true
+            "namedChunks": true,
+            "allowedCommonJsDependencies": [
+              "class-transformer",
+              "lodash",
+              "cronstrue",
+              "codemirror"
+            ]
           },
           "configurations": {
             "production": {
