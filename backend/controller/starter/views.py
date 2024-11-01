@@ -1,4 +1,4 @@
-# Copyright 2020 Google Inc
+# Copyright 2024 Google Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,20 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Task results handler."""
+"""Starter handler."""
 
 import datetime
 
-from flask import Blueprint
-from flask import request
-from flask_restful import Api
-from flask_restful import Resource
+from flask import Blueprint, request
+from flask_restful import Api, Resource
+from sqlalchemy import orm
 
-from common import crmint_logging
-from common import insight
-from common import message
-from controller import cron_utils
-from controller import models
+from common import crmint_logging, insight, message
+from controller import cron_utils, models
 
 blueprint = Blueprint('starter', __name__)
 api = Api(blueprint)
@@ -37,23 +33,26 @@ class StarterResource(Resource):
   def _start_scheduled_pipelines(self):
     """Finds and tries starting the pipelines scheduled to be executed now."""
     now_dt = datetime.datetime.utcnow()
-    for pipeline in models.Pipeline.where(run_on_schedule=True).all():
-      for schedule in pipeline.schedules:
-        cron_match_result = cron_utils.cron_match(schedule.cron, now_dt)
-        if cron_match_result:
-          pipeline.start()
-          tracker = insight.GAProvider()
-          tracker.track_event(category='pipelines', action='scheduled_run')
-          break
+    scheduled_pipelines = models.Pipeline.query.options(
+      orm.lazyload(models.Pipeline.jobs),
+      orm.lazyload(models.Pipeline.params),
+      orm.joinedload(models.Pipeline.schedules)
+    ).filter_by(
+      run_on_schedule=True
+    ).all()
+    pipelines_to_start = [
+      pipeline.id for pipeline in scheduled_pipelines
+      if any(cron_utils.cron_match(
+        schedule.cron, now_dt) for schedule in pipeline.schedules)
+    ]
+    self._start_pipelines(pipelines_to_start)
 
   def _start_pipelines(self, pipeline_ids):
     """Tries finding and starting pipelines with IDs specified."""
     for pipeline_id in pipeline_ids:
-      pipeline = models.Pipeline.find(pipeline_id)
-      if pipeline is not None:
+      pipeline = models.Pipeline.query.get(pipeline_id)
+      if pipeline:
         pipeline.start()
-        tracker = insight.GAProvider()
-        tracker.track_event(category='pipelines', action='pubsub_run')
 
   def post(self):
     try:

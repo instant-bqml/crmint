@@ -42,12 +42,12 @@ SUBSCRIPTIONS = {
     },
     'crmint-task-finished': {
         'path': 'push/task-finished',
-        'ack_deadline_seconds': 300,
+        'ack_deadline_seconds': 600,
         'minimum_backoff': 10,  # seconds
     },
     'crmint-start-pipeline': {
         'path': 'push/start-pipeline',
-        'ack_deadline_seconds': 300,
+        'ack_deadline_seconds': 600,
         'minimum_backoff': 10,  # seconds
     },
     'crmint-pipeline-finished': None,

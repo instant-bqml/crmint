@@ -22,7 +22,7 @@ automatic_scaling:
   max_concurrent_requests: 20
 
 runtime: python39
-entrypoint: gunicorn -b :$PORT -w 2 -k gthread --threads 4 jobs_app:app
+entrypoint: gunicorn -b :$PORT -w 4 -k gthread --threads 4 --timeout 600 jobs_app:app
 
 handlers:
 - url: /.*
