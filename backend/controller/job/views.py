@@ -116,6 +116,11 @@ class JobList(Resource):
     args = parser.parse_args()
     pipeline = models.Pipeline.find(args['pipeline_id'])
     jobs = pipeline.jobs
+    for job in jobs:
+      job.updated_at = (
+        job.updated_at.isoformat() + 'Z'
+        if job.updated_at else None
+      )
     return jobs
 
   @marshal_with(job_fields)
