@@ -31,7 +31,7 @@ api = Api(blueprint)
 parser = reqparse.RequestParser()
 parser.add_argument('name')
 parser.add_argument('worker_class')
-parser.add_argument('pipeline_id')
+parser.add_argument('pipeline_id', location='args')
 parser.add_argument('start_conditions', type=list, location='args')
 parser.add_argument('params', type=list, location='args')
 param_fields = {
