@@ -117,24 +117,8 @@ function install_command_line() {
     rm -rf .venv
   fi
 
-  # Install Python 3.9 and its venv module
-  echo "Installing Python 3.9 and necessary packages..."
-  sudo apt-get update
-  sudo apt-get install -y software-properties-common
-  sudo add-apt-repository ppa:deadsnakes/ppa -y &> /dev/null
-  sudo apt-get update -qq
-  sudo apt-get install -y -qq python3.9 python3.9-venv python3.9-dev
-
-  # Verify Python 3.9 installation
-  if ! command -v python3.9 &> /dev/null; then
-    echo "Python 3.9 installation failed, exiting."
-    exit 1
-  fi
-  echo "Python 3.9 version: $(python3.9 --version)"
-
-  # Create virtual environment using Python 3.9
-  echo "Creating virtual environment with Python 3.9..."
-  python3.9 -m venv .venv
+  sudo apt-get install -y python3-venv
+  python3 -m venv .venv
 
   # Activate the virtual environment
   echo "Activating virtual environment..."
