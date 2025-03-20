@@ -24,7 +24,7 @@ export class JobsService extends ApiService {
 
   getJobsByPipeline(pipeline_id) {
     this.options.params = {'pipeline_id': pipeline_id};
-    this.removeContentTypeHeader();
+    this.addContentTypeHeader();
     return this.http.get(this.url, this.options)
                     .toPromise()
                     .catch(this.handleError);
