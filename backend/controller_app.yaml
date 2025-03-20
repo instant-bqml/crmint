@@ -21,7 +21,7 @@ automatic_scaling:
   target_throughput_utilization: 0.7
   max_concurrent_requests: 20
 
-runtime: python39
+runtime: python312
 entrypoint: gunicorn -b :$PORT -w 4 --timeout 600 controller_app:app
 
 # Enables legacy bundle services.
