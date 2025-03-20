@@ -38,6 +38,7 @@ setup(
         'Click==8.0.4',
         'pyyaml==6.0',
         'requests',
+        'cython<3.0.0',
     ],
     tests_require=test_deps,
     extras_require=extras,
