@@ -117,7 +117,6 @@ function install_command_line() {
     rm -rf .venv
   fi
 
-  # Install Python 3.12 venv if not already available (might not be needed in all environments)
   sudo apt-get update
   sudo apt-get install -y python3.12-venv
 
@@ -132,9 +131,9 @@ function install_command_line() {
   echo "Upgrading pip, setuptools, and wheel..."
   pip install --upgrade pip setuptools wheel &> /dev/null
 
-  # Install Cython (likely needed for pytest-cov)
-  echo "Installing Cython..."
-  pip install cython
+  # Install pyyaml without build isolation
+  echo "Installing pyyaml without build isolation..."
+  pip install "pyyaml==6.0" --no-build-isolation
 
   # Proceed to install the cli package
   echo "Installing CRMint CLI package..."
