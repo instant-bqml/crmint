@@ -117,16 +117,24 @@ function install_command_line() {
     rm -rf .venv
   fi
 
-  sudo apt-get install -y python3-venv
-  python3 -m venv .venv
+  # Install Python 3.12 venv if not already available (might not be needed in all environments)
+  sudo apt-get update
+  sudo apt-get install -y python3.12-venv
+
+  # Create a Python 3.12 virtual environment
+  python3.12 -m venv .venv
 
   # Activate the virtual environment
   echo "Activating virtual environment..."
   . .venv/bin/activate
 
-  # Upgrade pip, setuptools, and wheel
+  # Upgrade pip, setuptools, and wheel within the virtual environment
   echo "Upgrading pip, setuptools, and wheel..."
   pip install --upgrade pip setuptools wheel &> /dev/null
+
+  # Install Cython (likely needed for pytest-cov)
+  echo "Installing Cython..."
+  pip install cython
 
   # Proceed to install the cli package
   echo "Installing CRMint CLI package..."
