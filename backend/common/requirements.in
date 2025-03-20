@@ -1,6 +1,6 @@
 google-cloud-logging
 google-cloud-pubsub
-Flask==2.0.3
+Flask==2.2.5
 CacheControl
 gunicorn
 croniter
