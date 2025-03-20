@@ -118,10 +118,10 @@ function install_command_line() {
   fi
 
   sudo apt-get update
-  sudo apt-get install -y python-venv
+  sudo apt-get install -y python3.12-venv
 
-  # Create a Python virtual environment
-  python -m venv .venv
+  # Create a Python 3.12 virtual environment
+  python3.12 -m venv .venv
 
   # Activate the virtual environment
   echo "Activating virtual environment..."
@@ -130,6 +130,10 @@ function install_command_line() {
   # Upgrade pip, setuptools, and wheel within the virtual environment
   echo "Upgrading pip, setuptools, and wheel..."
   pip install --upgrade pip setuptools wheel &> /dev/null
+
+  # Install pyyaml without build isolation
+  echo "Installing pyyaml without build isolation..."
+  pip install "pyyaml==6.0" --no-build-isolation
 
   # Proceed to install the cli package
   echo "Installing CRMint CLI package..."
