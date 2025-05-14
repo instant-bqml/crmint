@@ -13,7 +13,7 @@ appengine-python-standard==1.1.10
 attrs==25.3.0
     # via appengine-python-standard
 cachecontrol==0.14.3
-    # via -r /home/student_00_3450fe84320d/crmint/backend/common/requirements.in
+    # via -r common/requirements.in
 cachetools==5.5.2
     # via google-auth
 certifi==2025.4.26
@@ -23,14 +23,14 @@ charset-normalizer==3.4.2
 click==8.1.8
     # via flask
 croniter==6.0.0
-    # via -r /home/student_00_3450fe84320d/crmint/backend/common/requirements.in
+    # via -r common/requirements.in
 deprecated==1.2.18
     # via
     #   opentelemetry-api
     #   opentelemetry-semantic-conventions
 flask==2.0.3
     # via
-    #   -r /home/student_00_3450fe84320d/crmint/backend/common/requirements.in
+    #   -r common/requirements.in
     #   flask-cors
     #   flask-migrate
     #   flask-restful
@@ -74,9 +74,9 @@ google-cloud-core==2.4.3
     #   google-cloud-bigquery
     #   google-cloud-logging
 google-cloud-logging==3.12.1
-    # via -r /home/student_00_3450fe84320d/crmint/backend/common/requirements.in
+    # via -r common/requirements.in
 google-cloud-pubsub==2.29.0
-    # via -r /home/student_00_3450fe84320d/crmint/backend/common/requirements.in
+    # via -r common/requirements.in
 google-crc32c==1.7.1
     # via google-resumable-media
 google-resumable-media==2.7.2
@@ -105,7 +105,7 @@ grpcio-status==1.72.0rc1
     #   google-api-core
     #   google-cloud-pubsub
 gunicorn==23.0.0
-    # via -r /home/student_00_3450fe84320d/crmint/backend/common/requirements.in
+    # via -r common/requirements.in
 idna==3.10
     # via requests
 importlib-metadata==8.6.1
