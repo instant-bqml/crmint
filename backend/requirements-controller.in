@@ -1,10 +1,11 @@
 -r common/requirements.in
 jinja2
 Flask-SQLAlchemy
+SQLAlchemy>=1.4.0,<2.0.0
 Flask-RESTful
 oauthlib
 Flask-Cors
-Flask-Migrate
+Flask-Migrate~=3.1.0
 mysql-connector-python==8.0.28
 google-cloud-bigquery
 appengine-python-standard
