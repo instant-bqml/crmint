@@ -114,7 +114,7 @@ markupsafe==2.1.1
     # via jinja2
 msgpack==1.0.4
     # via cachecontrol
-packaging==21.3
+packaging==24.0
     # via
     #   google-cloud-aiplatform
     #   google-cloud-bigquery
