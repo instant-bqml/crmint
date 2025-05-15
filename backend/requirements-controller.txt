@@ -127,7 +127,7 @@ numpy==1.23.2
     # via pyarrow
 oauthlib==3.2.1
     # via -r requirements-controller.in
-packaging==21.3
+packaging==24.0
     # via google-cloud-bigquery
 pillow==9.2.0
     # via appengine-python-standard
