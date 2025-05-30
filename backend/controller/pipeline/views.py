@@ -259,7 +259,7 @@ class PipelineExport(Resource):
         'Access-Control-Expose-Headers': 'Filename',
         'Content-Disposition': f'attachment; filename={filename}',
         'Filename': filename,
-        'Content-type': 'text/json'
+        'Content-type': 'application/json'
     }
 
   def _get_jobs(self, pipeline):
