@@ -684,7 +684,6 @@ def activate_services(stage, debug=False):
          f' aiplatform.googleapis.com'
          f' analytics.googleapis.com'
          f' analyticsadmin.googleapis.com'
-         f' analyticsreporting.googleapis.com'
          f' appengine.googleapis.com'
          f' bigquery-json.googleapis.com'
          f' cloudapis.googleapis.com'
