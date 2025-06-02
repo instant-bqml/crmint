@@ -85,7 +85,7 @@ function parse_command_line_arguments() {
 
 # Function to clone and checkout repository
 function clone_and_checkout_repository() {
-  TARGET_REPO_URL="https://github.com/enjaybaze/crmint.git"
+  TARGET_REPO_URL="https://github.com/enjaybaze/crmint-changed.git"
   TARGET_REPO_NAME="crmint"
   CLONE_DIR="$HOME/$TARGET_REPO_NAME"
 
