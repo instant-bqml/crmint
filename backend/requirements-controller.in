@@ -8,3 +8,4 @@ Flask-Migrate
 mysql-connector-python==8.0.28
 google-cloud-bigquery
 appengine-python-standard
+wheel==0.45.0
