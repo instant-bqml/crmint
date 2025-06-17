@@ -44,7 +44,7 @@ class BQWorker(worker.Worker):
       bigquery_opt_in = False
     if bigquery_opt_in:
       client_info = ClientInfo(
-        user_agent='cloud-solutions/crmint-ibqml-usage-v2')
+        user_agent='cloud-solutions/mas-crmint-ibqml-usage-v2')
     else:
       client_info = None
     return bigquery.Client(
